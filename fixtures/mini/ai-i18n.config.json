@@ -1,0 +1,8 @@
+{
+  "sourceGlobs": ["fixture/**/*.tsx"],
+  "defaultLocale": "en",
+  "locales": ["fr", "ar", "es"],
+  "catalogDir": "locales",
+  "provider": "openai",
+  "cacheDir": ".ai-i18n"
+}

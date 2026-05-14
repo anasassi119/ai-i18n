@@ -1,0 +1,17 @@
+# Repo / dev-only — publish uses package.json "files" whitelist; this blocks
+# accidental inclusion if that list is ever loosened.
+
+examples/
+fixtures/
+src/
+**/*.test.ts
+**/*.test.tsx
+vitest.config.ts
+tsconfig.json
+tsconfig.*.json
+tsup.config.ts
+tsup.cli.config.ts
+plan.md
+i18n-usage.md
+.git/
+.cursor/

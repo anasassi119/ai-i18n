@@ -1,0 +1,16 @@
+{
+  "email": "Email",
+  "forgotpassword": "Mot de passe oublié",
+  "help": "Aide",
+  "login": "Connexion",
+  "logout": "Se déconnecter",
+  "password": "Mot de passe",
+  "profileHeadline": "Profil",
+  "register": "S'inscrire",
+  "resetpassword": "Réinitialiser le mot de passe",
+  "settings": "Paramètres",
+  "signin": "Se connecter",
+  "signout": "Se déconnecter",
+  "signup": "S'inscrire",
+  "welcome": "Bonjour {{name}}"
+}

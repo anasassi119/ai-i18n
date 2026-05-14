@@ -1,0 +1,16 @@
+{
+  "email": "Correo electrónico",
+  "forgotpassword": "Olvidé la contraseña",
+  "help": "Ayuda",
+  "login": "Iniciar sesión",
+  "logout": "Cerrar sesión",
+  "password": "Contraseña",
+  "profileHeadline": "Perfil",
+  "register": "Registrarse",
+  "resetpassword": "Restablecer la contraseña",
+  "settings": "Configuraciones",
+  "signin": "Iniciar sesión",
+  "signout": "Cerrar sesión",
+  "signup": "Regístrate",
+  "welcome": "Hola {{name}}"
+}

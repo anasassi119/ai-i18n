@@ -1,0 +1,16 @@
+{
+  "welcome": "Hello {{name}}",
+  "signup": "Sign up",
+  "signin": "Sign in",
+  "signout": "Sign out",
+  "profileHeadline": "Profile",
+  "settings": "Settings",
+  "help": "Help",
+  "logout": "Logout",
+  "login": "Login",
+  "register": "Register",
+  "forgotpassword": "Forgot password",
+  "resetpassword": "Reset password",
+  "email": "Email",
+  "password": "Password"
+}

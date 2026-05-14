@@ -1,0 +1,8 @@
+{
+  "sourceGlobs": ["src/**/*.{tsx,ts,jsx,js}"],
+  "defaultLocale": "en",
+  "locales": ["fr"],
+  "catalogDir": "locales",
+  "cacheDir": ".ai-i18n",
+  "provider": "stub"
+}

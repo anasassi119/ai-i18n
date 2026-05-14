@@ -1,0 +1,16 @@
+{
+  "email": "البريد الإلكتروني",
+  "forgotpassword": "نسيت كلمة المرور",
+  "help": "مساعدة",
+  "login": "تسجيل الدخول",
+  "logout": "تسجيل الخروج",
+  "password": "كلمة المرور",
+  "profileHeadline": "الملف الشخصي",
+  "register": "تسجيل",
+  "resetpassword": "إعادة تعيين كلمة المرور",
+  "settings": "الإعدادات",
+  "signin": "تسجيل الدخول",
+  "signout": "تسجيل الخروج",
+  "signup": "سجل",
+  "welcome": "مرحبا {{name}}"
+}
