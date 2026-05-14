@@ -1,0 +1,70 @@
+# Workflows & recipes
+
+Patterns for **i18next** + **ai-i18n** in development and CI. Assumes the [resource contract](./resource-contract.md) (flat `catalogDir/{locale}.json`).
+
+---
+
+## CI: fail the build on catalog drift
+
+`ai-i18n diff` prints a report and exits with code **`1`** if any of the following are true:
+
+- Keys appear in scanned `t('…')` calls but **not** in the default locale catalog.
+- Keys exist in the default catalog but **not** as string-literal `t('…')` keys in scanned files (stale JSON).
+- Any target locale is **missing or empty** for a key present in the default catalog.
+- Any target locale has keys **not** in the default catalog (stale targets until you run `generate`).
+
+**Example (GitHub Actions):**
+
+```yaml
+- run: npm ci
+- run: npx ai-i18n diff
+```
+
+**Example (package.json script):**
+
+```json
+{
+  "scripts": {
+    "i18n:check": "ai-i18n diff"
+  }
+}
+```
+
+Use `AI_I18N_SKIP_INIT=1` in CI if you do not want postinstall scaffolding.
+
+---
+
+## Dev: `missingKey` → queue keys → `generate`
+
+i18next can call a handler when a key is missing. Use it **only in development** to log or collect keys; then run **`npx ai-i18n generate`** after adding strings to the default catalog (or let translators fill targets).
+
+```ts
+import i18next from "i18next";
+
+if (import.meta.env.DEV) {
+  i18next.on("missingKey", (lngs, namespace, key) => {
+    console.warn(`[i18n] missing: ${String(lngs)} ${namespace}:${key}`);
+    // Optionally append to a local file or open an issue — then add key to locales/en.json and run generate.
+  });
+}
+```
+
+**Workflow:** add the key and English string to **`locales/{defaultLocale}.json`**, run **`npx ai-i18n generate`** to fill other locales, commit JSON.
+
+This package does **not** auto-write locale files from `missingKey` at runtime (no long-running translator in the browser).
+
+---
+
+## Hint hygiene
+
+- Keep **`hint`** as a **string literal** so the CLI sees it (see [cli-reference.md](./cli-reference.md)).
+- Strip **`hint`** before calling `t` in production if you use a shared wrapper, or ensure production bundles tree-shake dev-only call sites.
+
+**Future (roadmap):** optional sidecar file (e.g. hints in `.ai-i18n` only) so `en.json` stays free of non-i18next fields — not implemented yet.
+
+---
+
+## Related
+
+- [resource-contract.md](./resource-contract.md) — on-disk shape and plural stance
+- [environment.md](./environment.md) — API keys for `generate`

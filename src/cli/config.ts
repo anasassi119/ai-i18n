@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 
-export type Provider = "stub" | "openai" | "anthropic";
+export type Provider = "openai" | "anthropic";
 
 export interface AitConfig {
   sourceGlobs: string[];
@@ -39,12 +39,17 @@ export async function loadConfig(cwd: string): Promise<{ path: string; config: A
     throw new Error("ai-i18n.config.json: catalogDir must be a string");
   }
   const providerRaw = o.provider;
-  let provider: Provider = "stub";
+  let provider: Provider = "openai";
   if (providerRaw !== undefined && providerRaw !== null) {
-    if (providerRaw === "openai" || providerRaw === "anthropic" || providerRaw === "stub") {
+    if (providerRaw === "stub") {
+      throw new Error(
+        'ai-i18n.config.json: "stub" provider was removed. Use "openai" or "anthropic".',
+      );
+    }
+    if (providerRaw === "openai" || providerRaw === "anthropic") {
       provider = providerRaw;
     } else {
-      throw new Error('ai-i18n.config.json: provider must be "stub", "openai", or "anthropic"');
+      throw new Error('ai-i18n.config.json: provider must be "openai" or "anthropic"');
     }
   }
   const model = o.model;

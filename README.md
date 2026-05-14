@@ -1,87 +1,72 @@
+<p align="center">
+  <img src="https://raw.githubusercontent.com/anasassi119/ai-i18n/master/docs/banner.svg" alt="ai-i18n — AI-assisted translation for i18next" width="640" />
+</p>
+
+<p align="center">
+  <a href="https://www.npmjs.com/package/ai-i18n"><img src="https://img.shields.io/npm/v/ai-i18n.svg" alt="npm version" /></a>
+  <a href="./LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License MIT" /></a>
+  <a href="https://nodejs.org/"><img src="https://img.shields.io/node/v/ai-i18n.svg" alt="Node version" /></a>
+</p>
+
 # ai-i18n
 
-Standalone React **runtime** (`useTranslation`, `t`) plus a **CLI** that scans `t('messageKey', { hint: '…' })` calls, reads your **default-locale JSON**, and fills **target locale** files using **OpenAI** (default in the generated config), a **stub** translator, or **Anthropic** (your API keys).
+**CLI** that scans **`t('key', { hint: '…' })`** in your source, keeps **locale JSON** in sync with **[i18next](https://www.i18next.com/)**, and fills missing translations with **OpenAI** or **Anthropic**. Runtime is **always i18next** (plus **react-i18next** in React apps).
 
-No dependency on `i18next` or `react-i18next`.
+---
 
-## Install
+## Overview
 
-```bash
-npm install ai-i18n react
-```
+| You use | For |
+|---------|-----|
+| **i18next** + **react-i18next** | `useTranslation()`, `t()`, plurals, namespaces, loading, `Trans` |
+| **ai-i18n** | `init` / `generate` / `diff`, scanning keys + **hints**, AI providers, `.env` for API keys |
+| **`ai-i18n/i18next`** (optional) | Turn flat `{ en: {…}, fr: {…} }` catalogs into `i18next.init({ resources })` |
 
-On **`npm install`**, if **`ai-i18n.config.json` is missing**, the postinstall script picks your app root by walking up from this package: it prefers a directory whose **`node_modules` entry for this package** resolves to the installed copy (so it still works on the **first** install, when npm has not yet written `ai-i18n` into your `package.json`), and otherwise falls back to a **`package.json` that lists `ai-i18n`** (including when the script’s cwd is inside `node_modules/ai-i18n` and `INIT_CWD` is missing). It then writes the default config and, if missing, creates **`{catalogDir}`** (from that config, usually `locales`) and an empty **`{defaultLocale}.json`** (usually `locales/en.json`). Set **`AI_I18N_SKIP_INIT=1`** to skip (e.g. CI). Set **`AI_I18N_DEBUG=1`** for a short log (resolved paths, skip reasons). Lifecycle scripts do not re-run on a no-op install — use **`npm rebuild ai-i18n`** or **`npx ai-i18n init`** if you need the default config again.
+---
 
-You can always scaffold or overwrite manually:
+## Install (what to run once)
 
-```bash
-npx ai-i18n init
-npx ai-i18n init --force
-```
-
-`init` writes the same default `ai-i18n.config.json` as postinstall and creates **`{catalogDir}/{defaultLocale}.json`** as `{}` when that file is missing.
-
-For cloud translation, also install the SDK you use (optional peer dependencies). The **postinstall / `init` default** config sets `"provider": "openai"`, so install **`openai`** unless you change the provider to `stub` or `anthropic`:
+`ai-i18n` **does not** install **i18next** or provider SDKs for you. In your app:
 
 ```bash
+npm install ai-i18n --save-dev
+npm install i18next react-i18next react
+# Pick one provider SDK to match ai-i18n.config.json:
 npm install openai
-# and/or
+# or
 npm install @anthropic-ai/sdk
 ```
 
-## Example React app (this repo)
+After `npm install ai-i18n`, **postinstall** may create `ai-i18n.config.json` + empty `locales/en.json` and print a short setup reminder (unless `AI_I18N_SKIP_INIT=1`). Details: [docs/install-and-postinstall.md](./docs/install-and-postinstall.md).
 
-From the repo root, after a library build, install and start the Vite demo:
+---
 
-```bash
-npm run example:dev
-```
+## Minimal example (end-to-end)
 
-Details: [examples/react-test-app/README.md](examples/react-test-app/README.md). From the example directory you can run `npm run i18n:diff` / `i18n:generate` against `ai-i18n.config.json` and `locales/`.
+### 1. Source code the CLI can scan
 
-## Runtime
-
-Messages are **flat JSON** maps: `resources[locale][key] = "Hello {{name}}"`. Placeholders use **`{{variable}}`** (double braces).
+Callee must be named **`t`**, first argument a **string literal**. **`hint`** helps the translator; use a **string literal** so the CLI sees it.
 
 ```tsx
-import { useState } from "react";
-import { AitProvider, useTranslation } from "ai-i18n";
+// src/App.tsx
+declare function t(key: string, opts?: Record<string, unknown>): string;
 
-const resources = {
-  en: { welcome: "Welcome back, {{name}}!" },
-  fr: { welcome: "Bon retour, {{name}} !" },
-};
-
-export function App() {
-  const [locale, setLocale] = useState("en");
-  return (
-    <AitProvider locale={locale} defaultLocale="en" resources={resources}>
-      <Home />
-      <button type="button" onClick={() => setLocale(locale === "en" ? "fr" : "en")}>
-        Toggle
-      </button>
-    </AitProvider>
-  );
-}
-
-function Home() {
-  const { t } = useTranslation();
-  return <p>{t("welcome", { name: "Ada", hint: "main dashboard greeting" })}</p>;
+export function Greeting() {
+  return <p>{t("welcome", { name: "Ada", hint: "dashboard greeting above fold" })}</p>;
 }
 ```
 
-- **`hint`** is reserved: passed only for tooling / `ai-i18n generate`; it is **not** interpolated. All other options are interpolation values.
-- Missing keys: by default `t` returns the key and logs a **warning** in development. Set **`strictMissingKeys`** on `AitProvider` to throw instead.
+At runtime you use **`react-i18next`** `t` — the pattern above is what the **scanner** looks for.
 
-## `ai-i18n.config.json`
+### 2. Config at the project root
 
-Place at the project root (where you run the CLI).
+[`ai-i18n.config.json`](./docs/configuration.md) (often created by `npx ai-i18n init`):
 
 ```json
 {
   "sourceGlobs": ["src/**/*.{tsx,ts,jsx,js}"],
   "defaultLocale": "en",
-  "locales": ["fr", "es"],
+  "locales": ["fr"],
   "catalogDir": "locales",
   "cacheDir": ".ai-i18n",
   "provider": "openai",
@@ -89,104 +74,158 @@ Place at the project root (where you run the CLI).
 }
 ```
 
-| Field | Required | Description |
-|--------|----------|-------------|
-| `sourceGlobs` | yes | Glob patterns for files to scan. |
-| `defaultLocale` | yes | Locale code for the source catalog file `{catalogDir}/{defaultLocale}.json`. |
-| `locales` | yes | Target locale codes (files `{code}.json`). The default locale is skipped for generation. |
-| `catalogDir` | yes | Directory containing `en.json`, `fr.json`, … |
-| `cacheDir` | no (default `.ai-i18n`) | Stores `.ai-i18n-cache.json` (source-string hashes) and `.ai-i18n-hints.json` (static hints from code). |
-| `provider` | no (default `stub` when omitted) | `stub` \| `openai` \| `anthropic`. The **generated** default from `init` / postinstall is `openai`. |
-| `model` | no | Provider-specific model id override. OpenAI CLI default when omitted: **`gpt-5-mini`**. |
+### 3. Default locale catalog (flat JSON)
 
-### Runtime vs CLI config
+`locales/en.json` — keys must cover every `t('…')` literal in scanned files:
 
-`ai-i18n.config.json` is read by the **CLI** (`init`, `generate`, `diff`). **`AitProvider` does not load it**; it expects a `resources` object already in JavaScript memory so your bundler can include message strings in the client bundle. The browser has **no access to arbitrary paths** on disk, so the CLI cannot “inject” catalogs into React for you without an **import**, **`import.meta.glob`**, or a **build/codegen** step.
+```json
+{
+  "welcome": "Hello, {{name}}!"
+}
+```
 
-**Single source of truth:** Treat `defaultLocale`, `locales`, and `catalogDir` in `ai-i18n.config.json` as the canonical list of **which locale files exist** for `generate`. At runtime, build `resources` from the same `catalogDir` JSON files so the lists stay aligned—for example with Vite:
+### 4. API keys (OpenAI example)
+
+Create **`.env`** next to `ai-i18n.config.json` (or export in the shell). The CLI loads `.env` before running; **environment variables override** `.env`.
+
+```env
+OPENAI_API_KEY=sk-proj-xxxxxxxx
+```
+
+Anthropic example: `ANTHROPIC_API_KEY=sk-ant-api03-xxxxxxxx`. More: [docs/environment.md](./docs/environment.md).
+
+### 5. Generate target locales
+
+```bash
+npx ai-i18n generate
+```
+
+Writes / updates `locales/fr.json` (and any other `locales` in config) from `en.json` using your provider.
+
+### 6. Load JSON into i18next (React)
+
+```tsx
+// main.tsx (excerpt)
+import i18next from "i18next";
+import { initReactI18next } from "react-i18next";
+import en from "./locales/en.json";
+import fr from "./locales/fr.json";
+
+void i18next.use(initReactI18next).init({
+  resources: {
+    en: { translation: en },
+    fr: { translation: fr },
+  },
+  lng: "en",
+  fallbackLng: "en",
+  interpolation: { escapeValue: true },
+});
+```
+
+```tsx
+import { useTranslation } from "react-i18next";
+
+export function Greeting() {
+  const { t } = useTranslation();
+  return <p>{t("welcome", { name: "Ada" })}</p>;
+}
+```
+
+Do **not** pass **`hint`** to runtime `t()` unless you strip it — i18next ignores it; see [docs/resource-contract.md](./docs/resource-contract.md).
+
+### 7. Optional helper: build `resources` from objects
 
 ```ts
-import aitCfg from "../ai-i18n.config.json";
+import { catalogsToI18nextResources } from "ai-i18n/i18next";
 
-const modules = import.meta.glob("../locales/*.json", { eager: true }) as Record<
-  string,
-  { default?: Record<string, string> } | Record<string, string>
->;
+const resources = catalogsToI18nextResources(
+  {
+    en: { welcome: "Hello, {{name}}!" },
+    fr: { welcome: "Bonjour, {{name}} !" },
+  },
+  "translation",
+);
 
-function localeFromPath(file: string): string {
-  const m = file.match(/\/([a-z0-9-]+)\.json$/i);
-  if (!m) throw new Error(`Bad locale path: ${file}`);
-  return m[1];
-}
-
-const resources: Record<string, Record<string, string>> = {};
-for (const [file, mod] of Object.entries(modules)) {
-  const loc = localeFromPath(file);
-  const data = "default" in mod && mod.default ? mod.default : mod;
-  resources[loc] = data as Record<string, string>;
-}
-
-// aitCfg.defaultLocale, aitCfg.locales — use for locale pickers / validation
+void i18next.use(initReactI18next).init({ resources, lng: "en", fallbackLng: "en" });
 ```
 
-For **server-only** rendering you could read `catalogDir` with `fs` at startup; that path is not shipped in this package as a public API.
+---
 
-### Environment variables
-
-The CLI loads a **`.env` file in the project root** (next to `ai-i18n.config.json`, i.e. the current working directory) **before** reading config or calling providers. Values already set in the real environment **win** over entries in `.env`.
-
-- **OpenAI:** `OPENAI_API_KEY` (when `provider` is `openai`).
-- **Anthropic:** `ANTHROPIC_API_KEY` (when `provider` is `anthropic`).
-
-**Windows (PowerShell):** use `$env:OPENAI_API_KEY = "sk-..."` in the **same** terminal session before running the CLI. The `SET VAR=value` form is for **cmd.exe**, not PowerShell, so Node will not see the variable.
-
-## CLI
+## CLI commands
 
 ```bash
-npx ai-i18n init
-npx ai-i18n init --force     # replace existing ai-i18n.config.json
-npx ai-i18n generate        # fill missing/outdated keys in target locale JSON
-npx ai-i18n generate --force  # re-translate every key from default catalog
-npx ai-i18n diff            # report keys in code missing from default catalog, keys only in JSON, and per-locale gaps
+npx ai-i18n init              # create ai-i18n.config.json (+ empty default locale if missing)
+npx ai-i18n init --force      # replace config from template
+npx ai-i18n generate          # translate / fill target locale files
+npx ai-i18n generate --force  # re-translate all keys from default catalog
+npx ai-i18n diff              # report drift; exits 1 if anything is wrong (for CI)
 ```
 
-Equivalent with `npm exec` (note the `--` before the binary name and subcommand):
+**`diff` exit codes:** `0` = clean, `1` = keys missing in default, stale JSON, missing/empty targets, or stale keys in targets. Example CI: [docs/workflows.md](./docs/workflows.md).
 
-```bash
-npm exec -- ai-i18n init
-npm exec -- ai-i18n init --force
-npm exec -- ai-i18n generate
-npm exec -- ai-i18n generate --force
-npm exec -- ai-i18n diff
-```
+---
 
-Do **not** use `npm ai-i18n` (invalid) or `npx exec ai-i18n` (invalid). Use **`npx ai-i18n …`** or **`npm exec -- ai-i18n …`**.
+## Features (summary)
 
-### Scanner rules (strict)
+- **Scan** — `t('literalKey', …)` + string-literal **`hint`**.
+- **Generate / diff** — merge from default locale, prune removed keys, `.ai-i18n` cache.
+- **Providers** — `openai` (default) or `anthropic`; default OpenAI model **`gpt-5-mini`**.
+- **Postinstall** — optional scaffold + configure reminder.
+- **`.env`** — loaded from project root before CLI runs.
 
-- Only **`t('literalKey', …?)`** is extracted: the first argument must be a **string literal** callee name **`t`** (identifier).
-- **`hint`** is only read when it is a **string literal** in the options object. Dynamic hints are ignored by the CLI.
+---
 
-### Catalog sync (default → targets)
+## Documentation index
 
-Each target locale file is **rebuilt from the set of keys in the default catalog** (string entries only). Keys you **remove or rename** in the default JSON disappear from targets on the next `generate` (no `--force` needed for pruning). `diff` also lists keys still present in a target file but absent from the default catalog.
+| Doc | Contents |
+|-----|----------|
+| [docs/i18next.md](./docs/i18next.md) | Wiring catalogs into i18next, `import.meta.glob` |
+| [docs/resource-contract.md](./docs/resource-contract.md) | File layout, plurals / ICU stance, `hint` rules |
+| [docs/configuration.md](./docs/configuration.md) | Every `ai-i18n.config.json` field |
+| [docs/cli-reference.md](./docs/cli-reference.md) | Scanner rules, catalog sync |
+| [docs/workflows.md](./docs/workflows.md) | CI with `diff`, `missingKey` dev recipe |
+| [docs/environment.md](./docs/environment.md) | API keys, PowerShell |
+| [docs/install-and-postinstall.md](./docs/install-and-postinstall.md) | Lifecycle, rebuild |
+| [ROADMAP.md](./ROADMAP.md) | Phases, acceptance status, Phase 2 backlog |
 
-### Stub provider
+---
 
-With `"provider": "stub"`, target strings are copies of the default locale (useful for CI and wiring tests). Use `openai` or `anthropic` for real translation.
+## Limitations
 
-## Publish checklist
+- Scanner: **`t('stringLiteral', …)`** only — no dynamic or template-literal keys.
+- **`hint`**: string literal in source for CLI; not an i18next option at runtime.
+- **Output**: **flat** `key → string` JSON per locale file; plural/ICU/nested resource shapes are **i18next-side** until [Phase 2](./ROADMAP.md#phase-2--cli-alignment-with-i18next-layouts).
 
-1. `npm run build` — produces `dist/index.js`, `dist/index.d.ts`, `dist/cli.js`.
-2. `npm run typecheck` / `npm test`.
-3. `npm pack --dry-run` — the tarball only includes the built JS/DTS, `templates/`, `scripts/postinstall.mjs`, `README.md`, and `LICENSE` (no `examples/`, `fixtures/`, `src/`, or source maps). See `package.json` → `"files"` and [`.npmignore`](./.npmignore).
+---
 
-## Limitations (v0.1)
+## Compatibility
 
-- No plural/ICU, no rich markup component, no namespaces.
-- The `ai-i18n` CLI depends on `@babel/parser`, `@babel/traverse`, `@babel/types`, and `fast-glob` (declared in `dependencies`). Optional peers: `openai`, `@anthropic-ai/sdk`.
-- No `t(variable)` or template-literal keys.
+| | |
+|--|--|
+| **Node** | **18+** |
+| **i18next** | Install in your app (**≥23**; helper tested with **24.x** in dev) |
+| **react-i18next** | Match your i18next major |
+
+---
 
 ## License
 
-MIT — see [LICENSE](./LICENSE).
+[MIT](./LICENSE)
+
+---
+
+## Version
+
+[![npm](https://img.shields.io/npm/v/ai-i18n.svg)](https://www.npmjs.com/package/ai-i18n) — repo `version` field: [package.json](./package.json).
+
+---
+
+## Roadmap
+
+[ROADMAP.md](./ROADMAP.md) — Phase **1** and **3** acceptance **met**; Phase **2** (alternate `resourceFormat` / namespaces) is the next milestone.
+
+## Publish checklist (maintainers)
+
+1. `npm run build`
+2. `npm run typecheck` && `npm test`
+3. `npm pack --dry-run`

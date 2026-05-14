@@ -1,51 +1,48 @@
 {
   "name": "ai-i18n",
-  "version": "0.1.9",
-  "description": "React i18n runtime and CLI to generate locale files from keys + optional translator hints (OpenAI / Anthropic / stub).",
+  "version": "2.0.0",
+  "description": "CLI for AI-assisted translation of i18next locale JSON — scan t() + hints, generate and diff catalogs (OpenAI / Anthropic).",
   "type": "module",
-  "main": "./dist/index.js",
-  "module": "./dist/index.js",
-  "types": "./dist/index.d.ts",
   "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
+    "./i18next": {
+      "types": "./dist/i18next.d.ts",
+      "import": "./dist/i18next.js"
     }
   },
   "bin": {
     "ai-i18n": "dist/cli.js"
   },
   "files": [
-    "dist/index.js",
-    "dist/index.d.ts",
     "dist/cli.js",
+    "dist/i18next.js",
+    "dist/i18next.d.ts",
     "templates",
     "scripts",
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "ROADMAP.md",
+    "docs"
   ],
   "scripts": {
-    "build": "tsup && tsup --config tsup.cli.config.ts",
+    "build": "tsup --config tsup.cli.config.ts",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
     "prepack": "npm run build",
-    "postinstall": "node ./scripts/postinstall.mjs",
-    "example:dev": "npm run build && npm install --prefix examples/react-test-app && npm run dev --prefix examples/react-test-app",
-    "example:i18n": "npm run build && npm --prefix examples/react-test-app run i18n:generate"
+    "postinstall": "node ./scripts/postinstall.mjs"
   },
   "keywords": [
     "i18n",
-    "react",
+    "i18next",
     "translation",
     "cli",
-    "localization"
+    "localization",
+    "openai"
   ],
   "license": "MIT",
   "peerDependencies": {
     "@anthropic-ai/sdk": ">=0.30.0 <1",
-    "openai": "^4.0.0",
-    "react": ">=18.0.0"
+    "openai": "^4.0.0"
   },
   "peerDependenciesMeta": {
     "openai": {
@@ -66,9 +63,8 @@
     "@anthropic-ai/sdk": "^0.39.0",
     "@types/babel__traverse": "^7.20.6",
     "@types/node": "^22.10.0",
-    "@types/react": "^18.3.12",
+    "i18next": "^24.2.0",
     "openai": "^4.104.0",
-    "react": "^18.3.1",
     "tsup": "^8.3.5",
     "typescript": "^5.7.2",
     "vitest": "^2.1.6"

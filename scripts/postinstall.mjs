@@ -149,7 +149,7 @@ async function bootstrapDefaultCatalog(root, configPath) {
 async function main() {
   if (SKIP) {
     if (DEBUG) console.warn("[ai-i18n] postinstall: skipped (AI_I18N_SKIP_INIT).");
-    return;
+    return false;
   }
 
   const installedAt = await packageDir();
@@ -170,7 +170,7 @@ async function main() {
         "[ai-i18n] postinstall: could not find a package.json that lists ai-i18n in dependencies, devDependencies, or optionalDependencies.",
       );
     }
-    return;
+    return false;
   }
 
   const target = path.join(root, "ai-i18n.config.json");
@@ -178,7 +178,7 @@ async function main() {
     if (DEBUG) {
       console.warn("[ai-i18n] postinstall:", target, "already exists; not overwriting.");
     }
-    return;
+    return true;
   }
 
   const template = path.join(installedAt, "templates", "ai-i18n.config.default.json");
@@ -186,8 +186,35 @@ async function main() {
   await writeFile(target, body, "utf8");
   await bootstrapDefaultCatalog(root, target);
   console.log("[ai-i18n] Created ai-i18n.config.json (postinstall) — edit sourceGlobs and locales as needed.");
+  return true;
 }
 
-main().catch((err) => {
-  console.warn("[ai-i18n] postinstall could not create default config:", err.message);
-});
+main()
+  .then((showTips) => {
+    if (!SKIP && showTips) printInstallHelp();
+  })
+  .catch((err) => {
+    console.warn("[ai-i18n] postinstall could not create default config:", err.message);
+  });
+
+function printInstallHelp() {
+  console.log(`
+[ai-i18n] ─── Configure ─────────────────────────────────────────────
+  ai-i18n.config.json → "provider": "openai" or "anthropic"
+
+  OpenAI
+    npm install openai
+    OPENAI_API_KEY   use your platform secret (often starts with sk-, e.g. sk-proj-...)
+
+  Anthropic
+    npm install @anthropic-ai/sdk
+    ANTHROPIC_API_KEY   console key (often starts with sk-ant-api03-...)
+
+  Add keys to .env next to ai-i18n.config.json, or export them in your shell, then:
+    npx ai-i18n generate
+
+  This package does not install i18next — in your app run:
+    npm install i18next react-i18next
+────────────────────────────────────────────────────────────────────
+`.trim());
+}

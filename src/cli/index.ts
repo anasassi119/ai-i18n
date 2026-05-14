@@ -16,7 +16,8 @@ async function main(): Promise<void> {
   }
 
   if (cmd === "diff") {
-    await runDiff(cwd);
+    const { ok } = await runDiff(cwd);
+    if (!ok) process.exitCode = 1;
     return;
   }
 

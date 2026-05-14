@@ -5,6 +5,8 @@ import { scanSources } from "./scan.js";
 
 type Catalog = Record<string, string>;
 
+export type DiffResult = { ok: boolean };
+
 async function readJson<T>(file: string): Promise<T | null> {
   try {
     const raw = await readFile(file, "utf8");
@@ -14,7 +16,11 @@ async function readJson<T>(file: string): Promise<T | null> {
   }
 }
 
-export async function runDiff(cwd: string): Promise<void> {
+/**
+ * Compares scanned `t('…')` keys to default + target locale catalogs.
+ * @returns `{ ok: true }` when there is nothing to fix; `{ ok: false }` when any drift is reported (use for CI exit codes).
+ */
+export async function runDiff(cwd: string): Promise<DiffResult> {
   const { config } = await loadConfig(cwd);
   const scan = await scanSources(cwd, config.sourceGlobs);
   const catalogDir = path.resolve(cwd, config.catalogDir);
@@ -46,6 +52,8 @@ export async function runDiff(cwd: string): Promise<void> {
     for (const k of inDefaultNotCode.sort()) console.log(`  - ${k}`);
   }
 
+  let hasDrift = inCodeNotDefault.length > 0 || inDefaultNotCode.length > 0;
+
   for (const locale of config.locales) {
     if (locale === config.defaultLocale) continue;
     const targetPath = path.join(catalogDir, `${locale}.json`);
@@ -66,8 +74,16 @@ export async function runDiff(cwd: string): Promise<void> {
       if (!keysInDefault.has(k)) staleInTarget.push(k);
     }
     if (staleInTarget.length) {
-      console.log(`[ai-i18n] Keys in ${locale}.json but not in default catalog (removed/renamed in default; run generate to prune):`);
+      console.log(
+        `[ai-i18n] Keys in ${locale}.json but not in default catalog (removed/renamed in default; run generate to prune):`,
+      );
       for (const k of staleInTarget.sort()) console.log(`  - ${k}`);
     }
+
+    if (missing.length > 0 || staleInTarget.length > 0) {
+      hasDrift = true;
+    }
   }
+
+  return { ok: !hasDrift };
 }

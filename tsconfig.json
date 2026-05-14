@@ -3,10 +3,9 @@
     "target": "ES2022",
     "module": "ESNext",
     "moduleResolution": "bundler",
-    "lib": ["ES2022", "DOM"],
+    "lib": ["ES2022"],
     "strict": true,
     "skipLibCheck": true,
-    "jsx": "react-jsx",
     "declaration": true,
     "declarationMap": true,
     "noEmit": true,
@@ -17,10 +16,7 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
     "rootDir": ".",
-    "baseUrl": ".",
-    "paths": {
-      "ai-i18n": ["./src/index.ts"]
-    }
+    "baseUrl": "."
   },
   "include": ["src/**/*.ts", "src/**/*.tsx", "vitest.config.ts"],
   "exclude": ["node_modules", "dist"]
