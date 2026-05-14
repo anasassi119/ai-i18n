@@ -30,6 +30,11 @@ function baseConfig(overrides: Partial<AitConfig> = {}): AitConfig {
   };
 }
 
+const flatI18nForGenerate = `
+const i18next = { init(_o: Record<string, unknown>) {} };
+i18next.init({ lng: "en", supportedLngs: ["en", "fr"], resources: {} });
+`;
+
 const nsI18nForGenerate = `
 const i18next = { init(_o: Record<string, unknown>) {} };
 i18next.init({
@@ -41,6 +46,43 @@ i18next.init({
   },
 });
 `;
+
+describe("runGenerateWithConfig (default catalog key order)", () => {
+  let dir: string;
+
+  afterEach(async () => {
+    if (dir) await rm(dir, { recursive: true, force: true });
+  });
+
+  it("writes target locale JSON keys in the same order as the default catalog", async () => {
+    dir = await mkdtemp(path.join(tmpdir(), "ai-i18n-gen-order-"));
+    await mkdir(path.join(dir, "src"), { recursive: true });
+    await mkdir(path.join(dir, "locales"), { recursive: true });
+    await writeFile(
+      path.join(dir, "locales", "en.json"),
+      JSON.stringify(
+        { zebra: "Z", apple: "A", mango: "M" },
+        null,
+        2,
+      ) + "\n",
+      "utf8",
+    );
+    await writeFile(
+      path.join(dir, "src", "App.tsx"),
+      `declare function t(key: string, opts?: Record<string, unknown>): string;\n` +
+        `export function X() {\n` +
+        `  return <span>{t("zebra")}{t("apple")}{t("mango")}</span>;\n` +
+        `}\n`,
+      "utf8",
+    );
+    await writeFile(path.join(dir, "src", "i18n.ts"), flatI18nForGenerate, "utf8");
+
+    await runGenerateWithConfig(dir, baseConfig({ resourceFormat: "flat" }), false);
+
+    const frRaw = await readFile(path.join(dir, "locales", "fr.json"), "utf8");
+    expect(Object.keys(JSON.parse(frRaw) as Record<string, string>)).toEqual(["zebra", "apple", "mango"]);
+  });
+});
 
 describe("runGenerateWithConfig (i18next-namespace layout)", () => {
   let dir: string;

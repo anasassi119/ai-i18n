@@ -16,7 +16,8 @@ async function main(): Promise<void> {
   }
 
   if (cmd === "diff") {
-    const { ok } = await runDiff(cwd);
+    const addMissingToDefault = args.includes("--add-missing-default");
+    const { ok } = await runDiff(cwd, { addMissingToDefault });
     if (!ok) process.exitCode = 1;
     return;
   }
@@ -27,7 +28,9 @@ async function main(): Promise<void> {
     return;
   }
 
-  console.error("Usage: ai-i18n init [--force] | ai-i18n generate [--force] | ai-i18n diff");
+  console.error(
+    "Usage: ai-i18n init [--force] | ai-i18n generate [--force] | ai-i18n diff [--add-missing-default]",
+  );
   process.exitCode = 1;
 }
 main().catch((err) => {

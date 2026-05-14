@@ -35,6 +35,8 @@ Place at the **project root** (where you run the CLI).
 | `resourceFormat` | Force `flat` or `i18next-namespace` instead of inferring from the `resources` object shape in the `i18n` file. **Common fix:** your files are `locales/en.json` (flat) but `i18next.init({ resources: { en: { translation: … }}})` makes the CLI guess **namespace** paths (`locales/en/translation.json`). If that guess is wrong for your repo, set **`"resourceFormat": "flat"`**. |
 | `namespace` | Only with `resourceFormat: "i18next-namespace"`; default **`translation`**. Must be omitted when `resourceFormat` is `flat` (or omitted and inferred as flat). |
 
+For **adding keys that appear in code but not yet in the default JSON**, use the CLI (not this file): `npx ai-i18n diff --add-missing-default` — see [cli-reference.md](./cli-reference.md).
+
 ## Troubleshooting: namespace path vs flat JSON files
 
 The CLI infers **`resourceFormat`** from the **AST shape** of `resources` in your `i18n` file. Nested objects (per locale → namespace → keys) suggest **`i18next-namespace`** on disk (`locales/en/translation.json`). **`init` / postinstall** only scaffold a **flat** empty catalog (`locales/en.json`).

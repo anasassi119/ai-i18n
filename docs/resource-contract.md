@@ -86,7 +86,7 @@ localesDir/
 
 
 
-**Default locale** (derived from the **`i18n`** module’s `lng` / locale list when possible, or overridden in config) is the **source of truth** for which keys exist. **`generate`** fills target locale files from that set; **`diff`** uses the same rules and **layout-aware paths**.
+**Default locale** (derived from the **`i18n`** module’s `lng` / locale list when possible, or overridden in config) is the **source of truth** for which keys exist. **`generate`** fills target locale files from that set; **`diff`** uses the same rules and **layout-aware paths**. **`generate`** writes each target catalog’s keys in the **same order** as the default locale JSON (incremental runs keep ordering aligned with the default file).
 
 
 

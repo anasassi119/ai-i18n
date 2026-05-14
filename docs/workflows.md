@@ -32,6 +32,8 @@ Patterns for **i18next** + **ai-i18n** in development and CI. Paths follow [reso
 
 Use `AI_I18N_SKIP_INIT=1` in CI if you do not want postinstall scaffolding.
 
+**Note:** Run **`npx ai-i18n diff`** only in CI — not **`diff --add-missing-default`**, which edits the default catalog unless you explicitly want pipelines to commit those changes.
+
 ---
 
 ## Dev: `missingKey` → queue keys → `generate`

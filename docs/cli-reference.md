@@ -8,9 +8,12 @@ npx ai-i18n init --force     # replace existing ai-i18n.config.json
 npx ai-i18n generate         # fill missing/outdated keys in target locale JSON
 npx ai-i18n generate --force # re-translate every key from default catalog
 npx ai-i18n diff             # compare code vs catalogs; exits 1 if drift (for CI)
+npx ai-i18n diff --add-missing-default  # append keys in code but missing from default catalog (empty values); then re-check
 ```
 
-**Exit code:** `diff` exits **`1`** when there is anything to fix (keys in code missing from default, keys only in default JSON, missing/empty target strings, or stale keys in targets). Exit **`0`** when clean. See [workflows.md](./workflows.md).
+**Exit code:** `diff` exits **`1`** when there is anything to fix (keys in code missing from default, keys only in default JSON, missing/empty target strings, or stale keys in targets). Exit **`0`** when clean. After **`--add-missing-default`**, exit code still reflects remaining drift (e.g. empty new default strings still count as missing in targets until you fill them and run **`generate`**). See [workflows.md](./workflows.md).
+
+**`--add-missing-default`:** only addresses **keys in code, not in the default file**. It does **not** remove keys that are only in the default catalog; use **`generate`** for target locales once the default catalog is complete.
 
 Equivalent:
 
@@ -28,7 +31,7 @@ Do **not** use `npm ai-i18n` (invalid). Prefer **`npx ai-i18n …`**.
 
 ## Catalog sync (default → targets)
 
-Each target locale file is **rebuilt from keys in the default catalog** (string entries only). Keys removed or renamed in the default JSON are **pruned** from targets on the next `generate` (no `--force` needed for pruning). `diff` lists keys in targets that are absent from the default catalog.
+Each target locale file is **rebuilt from keys in the default catalog** (string entries only), using the **same key order** as the default locale JSON. Keys removed or renamed in the default JSON are **pruned** from targets on the next `generate` (no `--force` needed for pruning). `diff` lists keys in targets that are absent from the default catalog.
 
 ## Optional helper: `ai-i18n/i18next`
 

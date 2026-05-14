@@ -172,9 +172,10 @@ npx ai-i18n init --force      # replace config from template
 npx ai-i18n generate          # translate / fill target locale files
 npx ai-i18n generate --force  # re-translate all keys from default catalog
 npx ai-i18n diff              # report drift; exits 1 if anything is wrong (for CI)
+npx ai-i18n diff --add-missing-default  # append code-only keys to default catalog (empty strings), then re-check
 ```
 
-**`diff` exit codes:** `0` = clean, `1` = keys missing in default, stale JSON, missing/empty targets, or stale keys in targets. Example CI: [docs/workflows.md](./docs/workflows.md).
+**`diff` exit codes:** `0` = clean, `1` = keys missing in default, stale JSON, missing/empty targets, or stale keys in targets. Example CI: [docs/workflows.md](./docs/workflows.md). For local fixing only, **`diff --add-missing-default`** writes missing default keys (see [docs/cli-reference.md](./docs/cli-reference.md)); do **not** use that flag in CI unless you intend to mutate the repo.
 
 ---
 

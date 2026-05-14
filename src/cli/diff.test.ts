@@ -1,4 +1,4 @@
-import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -143,5 +143,53 @@ describe("runDiff", () => {
     });
     const { ok } = await runDiff(dir);
     expect(ok).toBe(true);
+  });
+
+  it("--add-missing-default appends missing keys with empty values and preserves existing key order", async () => {
+    dir = await mkdtemp(path.join(tmpdir(), "ai-i18n-diff-add-"));
+    await mkdir(path.join(dir, "src"), { recursive: true });
+    await mkdir(path.join(dir, "locales"), { recursive: true });
+    await writeFile(path.join(dir, "src", "i18n.ts"), flatI18n, "utf8");
+    await writeFile(
+      path.join(dir, "ai-i18n.config.json"),
+      JSON.stringify({
+        sourceGlobs: ["src/**/*.tsx"],
+        localesDir: "locales",
+        i18n: "src/i18n.ts",
+        provider: "openai",
+      }),
+      "utf8",
+    );
+    await writeFile(
+      path.join(dir, "src", "App.tsx"),
+      `declare function t(key: string, opts?: Record<string, unknown>): string;\nexport function X() { return <span>{t("z")}{t("a")}{t("b")}</span>; }\n`,
+      "utf8",
+    );
+    await writeFile(
+      path.join(dir, "locales", "en.json"),
+      JSON.stringify({ z: "Z", a: "A" }, null, 2) + "\n",
+      "utf8",
+    );
+    await writeFile(path.join(dir, "locales", "fr.json"), JSON.stringify({ z: "z", a: "a" }, null, 2) + "\n", "utf8");
+
+    const { ok } = await runDiff(dir, { addMissingToDefault: true });
+    expect(ok).toBe(false);
+
+    const enRaw = await readFile(path.join(dir, "locales", "en.json"), "utf8");
+    expect(Object.keys(JSON.parse(enRaw) as Record<string, string>)).toEqual(["z", "a", "b"]);
+    expect((JSON.parse(enRaw) as Record<string, string>).b).toBe("");
+  });
+
+  it("without --add-missing-default does not write default catalog", async () => {
+    dir = await mkdtemp(path.join(tmpdir(), "ai-i18n-diff-noadd-"));
+    await writeLayout(dir, {
+      appKey: "onlyInCode",
+      enKeys: { welcome: "Hello" },
+      frKeys: { welcome: "Bonjour" },
+    });
+    const before = await readFile(path.join(dir, "locales", "en.json"), "utf8");
+    await runDiff(dir);
+    const after = await readFile(path.join(dir, "locales", "en.json"), "utf8");
+    expect(after).toBe(before);
   });
 });

@@ -1,4 +1,4 @@
-import { readFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { loadConfig } from "./config.js";
 import { localeCatalogPath } from "./catalogLayout.js";
@@ -7,6 +7,11 @@ import { scanSources } from "./scan.js";
 type Catalog = Record<string, string>;
 
 export type DiffResult = { ok: boolean };
+
+export type RunDiffOptions = {
+  /** Append keys seen in code but missing from the default catalog (empty string values), then re-run checks. */
+  addMissingToDefault?: boolean;
+};
 
 async function readJson<T>(file: string): Promise<T | null> {
   try {
@@ -17,27 +22,68 @@ async function readJson<T>(file: string): Promise<T | null> {
   }
 }
 
+function computeDefaultStringKeys(defaultCatalog: Catalog): Set<string> {
+  return new Set(Object.keys(defaultCatalog).filter((k) => typeof defaultCatalog[k] === "string"));
+}
+
+function computeCodeVsDefaultLists(
+  keysInCode: Set<string>,
+  keysInDefault: Set<string>,
+): { inCodeNotDefault: string[]; inDefaultNotCode: string[] } {
+  const inCodeNotDefault: string[] = [];
+  for (const k of keysInCode) {
+    if (!keysInDefault.has(k)) inCodeNotDefault.push(k);
+  }
+  const inDefaultNotCode: string[] = [];
+  for (const k of keysInDefault) {
+    if (!keysInCode.has(k)) inDefaultNotCode.push(k);
+  }
+  return { inCodeNotDefault, inDefaultNotCode };
+}
+
+/**
+ * Preserves existing key order from the JSON file, then appends new keys (lexicographic) with empty values.
+ */
+async function appendMissingKeysToDefaultCatalog(defaultPath: string, missingKeys: string[]): Promise<void> {
+  const raw = (await readJson<Record<string, unknown>>(defaultPath)) ?? {};
+  const out: Catalog = {};
+  for (const k of Object.keys(raw)) {
+    const v = raw[k];
+    if (typeof v === "string") {
+      out[k] = v;
+    }
+  }
+  const sortedNew = [...missingKeys].sort((a, b) => a.localeCompare(b));
+  for (const k of sortedNew) {
+    if (out[k] === undefined) {
+      out[k] = "";
+    }
+  }
+  await mkdir(path.dirname(defaultPath), { recursive: true });
+  await writeFile(defaultPath, JSON.stringify(out, null, 2) + "\n", "utf8");
+}
+
 /**
  * Compares scanned `t('…')` keys to default + target locale catalogs.
  * @returns `{ ok: true }` when there is nothing to fix; `{ ok: false }` when any drift is reported (use for CI exit codes).
  */
-export async function runDiff(cwd: string): Promise<DiffResult> {
+export async function runDiff(cwd: string, options: RunDiffOptions = {}): Promise<DiffResult> {
   const { config } = await loadConfig(cwd);
   const scan = await scanSources(cwd, config.sourceGlobs);
   const defaultPath = localeCatalogPath(cwd, config, config.defaultLocale);
-  const defaultCatalog = (await readJson<Catalog>(defaultPath)) ?? {};
+  let defaultCatalog = ((await readJson<Catalog>(defaultPath)) ?? {}) as Catalog;
 
-  const keysInDefault = new Set(
-    Object.keys(defaultCatalog).filter((k) => typeof defaultCatalog[k] === "string"),
-  );
-  const inCodeNotDefault: string[] = [];
-  for (const k of scan.keysInCode) {
-    if (!keysInDefault.has(k)) inCodeNotDefault.push(k);
-  }
+  let keysInDefault = computeDefaultStringKeys(defaultCatalog);
+  let { inCodeNotDefault, inDefaultNotCode } = computeCodeVsDefaultLists(scan.keysInCode, keysInDefault);
 
-  const inDefaultNotCode: string[] = [];
-  for (const k of keysInDefault) {
-    if (!scan.keysInCode.has(k)) inDefaultNotCode.push(k);
+  if (options.addMissingToDefault && inCodeNotDefault.length > 0) {
+    await appendMissingKeysToDefaultCatalog(defaultPath, inCodeNotDefault);
+    console.log(
+      `[ai-i18n] Wrote ${inCodeNotDefault.length} missing key(s) to default catalog (${path.relative(cwd, defaultPath)}) with empty strings — fill source text, then run generate.`,
+    );
+    defaultCatalog = ((await readJson<Catalog>(defaultPath)) ?? {}) as Catalog;
+    keysInDefault = computeDefaultStringKeys(defaultCatalog);
+    ({ inCodeNotDefault, inDefaultNotCode } = computeCodeVsDefaultLists(scan.keysInCode, keysInDefault));
   }
 
   if (inCodeNotDefault.length) {

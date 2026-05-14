@@ -162,7 +162,7 @@ export async function runGenerateWithConfig(
     const workSet = new Set(work.map((w) => w.key));
 
     const merged: Catalog = {};
-    for (const key of [...defaultKeys].sort((a, b) => a.localeCompare(b))) {
+    for (const key of defaultKeys) {
       const source = defaultCatalog[key] as string;
       if (workSet.has(key)) {
         const text = byKey.get(key);
