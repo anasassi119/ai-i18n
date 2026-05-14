@@ -93,24 +93,24 @@ Optional: set `"resourceFormat": "i18next-namespace"` (and `"namespace"` if not 
 
 | Key | JSON type | Possible values | Notes |
 |-----|-----------|-----------------|-------|
-| `sourceGlobs` | `string[]` | `*` | Required. Glob patterns per entry. |
-| `localesDir` | `string` | `*` | Required. Project-relative locale dir (+ `translator-notes.json`). |
-| `i18n` | `string` \| omit | `omit` \| `*` | Optional. Init module path; omit = catalog-only (then set `defaultLocale`, `locales`, layout). |
-| `defaultLocale` | `string` | `*` | Required if no `i18n`. Else optional override of inferred default. |
-| `locales` | `string[]` | `*` | Required if no `i18n`. Else optional; CLI ensures `defaultLocale` is listed. |
-| `resourceFormat` | `string` | `flat` \| `i18next-namespace` | On-disk layout; pin `flat` if `i18n` AST suggests namespace but files are `*.json` per locale. |
-| `namespace` | `string` | `translation` \| `*` | Namespace layout only; JSON basename without `.json`. Omit if `flat` or if `namespaces` set. |
-| `namespaces` | `string[]` | `*` | Namespace layout only; e.g. `["nav","common"]`. Omit if `flat`. |
-| `localeShape` | `string` | `flat` \| `nested` | Shape of keys inside each locale JSON. |
-| `catalogShape` | `string` | `flat` \| `nested` | Deprecated; use `localeShape` (warns once). |
-| `localesAutoDiscover` | `boolean` | `true` \| `false` | Only `true` does anything; rescans `localesDir` into `locales`. |
-| `provider` | `string` | `openai` \| `anthropic` | Default `openai`. `stub` rejected. |
-| `model` | `string` | `*` | Optional provider model id (e.g. `gpt-5-mini`). |
-| `cacheDir` | `string` | `.ai-i18n` \| `*` | Optional; cache file dir. Default `.ai-i18n`. |
+| `sourceGlobs` | `string[]` | <code>*</code> | Required. Glob pattern per array element. |
+| `localesDir` | `string` | <code>*</code> | Required. Project-relative locale directory (+ `translator-notes.json`). |
+| `i18n` | <code>string</code> or omit | <code>omit &#124; *</code> | Optional. Init path; omit = catalog-only (set `defaultLocale`, `locales`, layout). |
+| `defaultLocale` | `string` | <code>*</code> | Required if no `i18n`. Else overrides inferred default. |
+| `locales` | `string[]` | <code>*</code> | Required if no `i18n`. Else optional; CLI prepends `defaultLocale` if missing. |
+| `resourceFormat` | `string` | <code>flat &#124; i18next-namespace</code> | Pin `flat` when files are per-locale `*.json` but init AST looks namespace-style. |
+| `namespace` | `string` | <code>translation &#124; *</code> | Namespace layout only; basename without `.json`. Omit if `flat` or if `namespaces` set. |
+| `namespaces` | `string[]` | <code>*</code> | Namespace layout only; e.g. `["nav","common"]`. Omit if `flat`. |
+| `localeShape` | `string` | <code>flat &#124; nested</code> | Key structure inside each locale JSON file. |
+| `catalogShape` | `string` | <code>flat &#124; nested</code> | Deprecated; prefer `localeShape` (warns once). |
+| `localesAutoDiscover` | `boolean` | <code>true &#124; false</code> | Only `true` rescans `localesDir` into `locales`. |
+| `provider` | `string` | <code>openai &#124; anthropic</code> | Default `openai`. `stub` rejected. |
+| `model` | `string` | <code>*</code> | Optional model id (e.g. `gpt-5-mini`). |
+| `cacheDir` | `string` | <code>.ai-i18n &#124; *</code> | Optional; `.ai-i18n-cache.json` directory. |
 
-`*` = any non-empty string (or array of strings) allowed by that field’s rules.
+<code>*</code> = any non-empty string (or non-empty `string[]`) the field allows.
 
-**Rejected / errors:** `catalogDir` without `localesDir`. Unknown `provider`. `namespace` / `namespaces` with `flat`. Invalid `resourceFormat` \| `localeShape` \| `catalogShape`.
+**Rejected / errors:** `catalogDir` without `localesDir`. Unknown `provider`. `namespace` / `namespaces` with `flat`. Invalid `resourceFormat` / `localeShape` / `catalogShape`.
 
 Full narrative: [docs/configuration.md](./docs/configuration.md).
 
