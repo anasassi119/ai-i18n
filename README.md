@@ -10,7 +10,7 @@ No dependency on `i18next` or `react-i18next`.
 npm install ai-i18n react
 ```
 
-On **`npm install`**, if **`ai-i18n.config.json` is missing**, the postinstall script picks your app root by walking up from this package: it prefers a directory whose **`node_modules` entry for this package** resolves to the installed copy (so it still works on the **first** install, when npm has not yet written `ai-i18n` into your `package.json`), and otherwise falls back to a **`package.json` that lists `ai-i18n`** (including when the script’s cwd is inside `node_modules/ai-i18n` and `INIT_CWD` is missing). Set **`AI_I18N_SKIP_INIT=1`** to skip (e.g. CI). Set **`AI_I18N_DEBUG=1`** for a short log (resolved paths, skip reasons). Lifecycle scripts do not re-run on a no-op install — use **`npm rebuild ai-i18n`** or **`npx ai-i18n init`** if you need the default config again.
+On **`npm install`**, if **`ai-i18n.config.json` is missing**, the postinstall script picks your app root by walking up from this package: it prefers a directory whose **`node_modules` entry for this package** resolves to the installed copy (so it still works on the **first** install, when npm has not yet written `ai-i18n` into your `package.json`), and otherwise falls back to a **`package.json` that lists `ai-i18n`** (including when the script’s cwd is inside `node_modules/ai-i18n` and `INIT_CWD` is missing). It then writes the default config and, if missing, creates **`{catalogDir}`** (from that config, usually `locales`) and an empty **`{defaultLocale}.json`** (usually `locales/en.json`). Set **`AI_I18N_SKIP_INIT=1`** to skip (e.g. CI). Set **`AI_I18N_DEBUG=1`** for a short log (resolved paths, skip reasons). Lifecycle scripts do not re-run on a no-op install — use **`npm rebuild ai-i18n`** or **`npx ai-i18n init`** if you need the default config again.
 
 You can always scaffold or overwrite manually:
 
@@ -18,6 +18,8 @@ You can always scaffold or overwrite manually:
 npx ai-i18n init
 npx ai-i18n init --force
 ```
+
+`init` writes the same default `ai-i18n.config.json` as postinstall and creates **`{catalogDir}/{defaultLocale}.json`** as `{}` when that file is missing.
 
 For cloud translation, also install the SDK you use (optional peer dependencies). The **postinstall / `init` default** config sets `"provider": "openai"`, so install **`openai`** unless you change the provider to `stub` or `anthropic`:
 

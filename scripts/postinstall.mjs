@@ -2,7 +2,7 @@
  * Creates ai-i18n.config.json in the project that ran `npm install` when missing.
  * Set AI_I18N_SKIP_INIT=1 to disable (e.g. CI).
  */
-import { access, readFile, realpath, writeFile } from "node:fs/promises";
+import { access, mkdir, readFile, realpath, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -121,6 +121,31 @@ async function findConsumerRoot(installedAt) {
   return null;
 }
 
+/** Create `{catalogDir}/{defaultLocale}.json` as `{}` when missing (same rules as `ai-i18n init`). */
+async function bootstrapDefaultCatalog(root, configPath) {
+  let raw;
+  try {
+    raw = await readFile(configPath, "utf8");
+  } catch {
+    return;
+  }
+  let parsed;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return;
+  }
+  if (!parsed || typeof parsed !== "object") return;
+  const catalogDir = typeof parsed.catalogDir === "string" ? parsed.catalogDir : "locales";
+  const defaultLocale = typeof parsed.defaultLocale === "string" ? parsed.defaultLocale : "en";
+  const dirAbs = path.resolve(root, catalogDir);
+  const fileAbs = path.join(dirAbs, `${defaultLocale}.json`);
+  if (await exists(fileAbs)) return;
+  await mkdir(dirAbs, { recursive: true });
+  await writeFile(fileAbs, "{}\n", "utf8");
+  console.log(`[ai-i18n] Created ${path.relative(root, fileAbs)} (empty default catalog).`);
+}
+
 async function main() {
   if (SKIP) {
     if (DEBUG) console.warn("[ai-i18n] postinstall: skipped (AI_I18N_SKIP_INIT).");
@@ -159,6 +184,7 @@ async function main() {
   const template = path.join(installedAt, "templates", "ai-i18n.config.default.json");
   const body = await readFile(template, "utf8");
   await writeFile(target, body, "utf8");
+  await bootstrapDefaultCatalog(root, target);
   console.log("[ai-i18n] Created ai-i18n.config.json (postinstall) — edit sourceGlobs and locales as needed.");
 }
 
