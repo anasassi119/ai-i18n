@@ -83,7 +83,7 @@ Place at the project root (where you run the CLI).
   "catalogDir": "locales",
   "cacheDir": ".ai-i18n",
   "provider": "openai",
-  "model": "gpt-4o-mini"
+  "model": "gpt-5-mini"
 }
 ```
 
@@ -95,7 +95,39 @@ Place at the project root (where you run the CLI).
 | `catalogDir` | yes | Directory containing `en.json`, `fr.json`, … |
 | `cacheDir` | no (default `.ai-i18n`) | Stores `.ai-i18n-cache.json` (source-string hashes) and `.ai-i18n-hints.json` (static hints from code). |
 | `provider` | no (default `stub` when omitted) | `stub` \| `openai` \| `anthropic`. The **generated** default from `init` / postinstall is `openai`. |
-| `model` | no | Provider-specific model id override. |
+| `model` | no | Provider-specific model id override. OpenAI CLI default when omitted: **`gpt-5-mini`**. |
+
+### Runtime vs CLI config
+
+`ai-i18n.config.json` is read by the **CLI** (`init`, `generate`, `diff`). **`AitProvider` does not load it**; it expects a `resources` object already in JavaScript memory so your bundler can include message strings in the client bundle. The browser has **no access to arbitrary paths** on disk, so the CLI cannot “inject” catalogs into React for you without an **import**, **`import.meta.glob`**, or a **build/codegen** step.
+
+**Single source of truth:** Treat `defaultLocale`, `locales`, and `catalogDir` in `ai-i18n.config.json` as the canonical list of **which locale files exist** for `generate`. At runtime, build `resources` from the same `catalogDir` JSON files so the lists stay aligned—for example with Vite:
+
+```ts
+import aitCfg from "../ai-i18n.config.json";
+
+const modules = import.meta.glob("../locales/*.json", { eager: true }) as Record<
+  string,
+  { default?: Record<string, string> } | Record<string, string>
+>;
+
+function localeFromPath(file: string): string {
+  const m = file.match(/\/([a-z0-9-]+)\.json$/i);
+  if (!m) throw new Error(`Bad locale path: ${file}`);
+  return m[1];
+}
+
+const resources: Record<string, Record<string, string>> = {};
+for (const [file, mod] of Object.entries(modules)) {
+  const loc = localeFromPath(file);
+  const data = "default" in mod && mod.default ? mod.default : mod;
+  resources[loc] = data as Record<string, string>;
+}
+
+// aitCfg.defaultLocale, aitCfg.locales — use for locale pickers / validation
+```
+
+For **server-only** rendering you could read `catalogDir` with `fs` at startup; that path is not shipped in this package as a public API.
 
 ### Environment variables
 

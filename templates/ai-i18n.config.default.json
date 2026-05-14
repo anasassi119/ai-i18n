@@ -5,5 +5,5 @@
   "catalogDir": "locales",
   "cacheDir": ".ai-i18n",
   "provider": "openai",
-  "model": "gpt-4o-mini"
+  "model": "gpt-5-mini"
 }

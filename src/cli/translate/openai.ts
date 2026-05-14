@@ -55,7 +55,7 @@ export async function openAiTranslator(
   }
 
   const client = new OpenAI({ apiKey });
-  const model = options.model ?? "gpt-4o-mini";
+  const model = options.model ?? "gpt-5-mini";
   const batches = chunk(input.entries, BATCH_SIZE);
   const out: TranslateBatchResult = [];
 
