@@ -145,9 +145,11 @@ function collectCallsInSubtree(
     CallExpression(callPath) {
       const callee = callPath.node.callee;
       if (!t.isIdentifier(callee)) return;
+      const hook = hooks.get(callee.name);
+      // Only i18next-style calls: bare `t('…')` or the `t` bound from `useTranslation()` (incl. aliases).
+      if (hook === undefined && callee.name !== "t") return;
       const arg0 = callPath.node.arguments[0];
       if (!t.isStringLiteral(arg0)) return;
-      const hook = hooks.get(callee.name);
       keys.add(resolveLogicalKey(arg0.value, hook, ctx));
     },
   });

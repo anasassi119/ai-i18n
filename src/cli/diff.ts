@@ -4,7 +4,7 @@ import type { AitConfig } from "./config.js";
 import { loadConfig } from "./config.js";
 import { loadLocaleCatalogBundle } from "./catalogBundle.js";
 import { localeJsonFilesForLocale } from "./catalogLayout.js";
-import { mergeMissingKeysIntoParsed, splitNamespacedLogicalKey } from "./catalogTree.js";
+import { mergeMissingKeysIntoParsed, splitNamespacedLogicalKey, unwrapRedundantNamespaceRoot } from "./catalogTree.js";
 import { scanContextFromConfig, scanSources } from "./scan.js";
 
 export type DiffResult = { ok: boolean };
@@ -49,9 +49,12 @@ async function appendMissingKeysToDefaultCatalog(
   if (!defaultBundle.multiNamespace) {
     const filePath = localeJsonFilesForLocale(cwd, config, config.defaultLocale)[0]!.path;
     const raw = (await readJson<unknown>(filePath)) ?? {};
-    const merged = mergeMissingKeysIntoParsed(raw, shape, missingKeys);
+    const defaultNs = config.namespace ?? "translation";
+    const { body, didUnwrap } = unwrapRedundantNamespaceRoot(raw, defaultNs);
+    const merged = mergeMissingKeysIntoParsed(body, shape, missingKeys);
+    const out = didUnwrap ? { [defaultNs]: merged } : merged;
     await mkdir(path.dirname(filePath), { recursive: true });
-    await writeFile(filePath, JSON.stringify(merged, null, 2) + "\n", "utf8");
+    await writeFile(filePath, JSON.stringify(out, null, 2) + "\n", "utf8");
     return;
   }
 
@@ -74,9 +77,11 @@ async function appendMissingKeysToDefaultCatalog(
     if (innerMissing.length === 0) continue;
     const filePath = localeJsonFilesForLocale(cwd, config, config.defaultLocale).find((x) => x.namespace === ns)!.path;
     const raw = (await readJson<unknown>(filePath)) ?? {};
-    const merged = mergeMissingKeysIntoParsed(raw, shape, innerMissing);
+    const { body, didUnwrap } = unwrapRedundantNamespaceRoot(raw, ns);
+    const merged = mergeMissingKeysIntoParsed(body, shape, innerMissing);
+    const out = didUnwrap ? { [ns]: merged } : merged;
     await mkdir(path.dirname(filePath), { recursive: true });
-    await writeFile(filePath, JSON.stringify(merged, null, 2) + "\n", "utf8");
+    await writeFile(filePath, JSON.stringify(out, null, 2) + "\n", "utf8");
   }
 }
 

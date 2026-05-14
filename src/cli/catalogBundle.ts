@@ -9,6 +9,7 @@ import {
   namespacedLogicalKey,
   nestedLeafKeyOrder,
   splitNamespacedLogicalKey,
+  unwrapRedundantNamespaceRoot,
 } from "./catalogTree.js";
 
 export type LocaleCatalogBundle = {
@@ -22,6 +23,11 @@ export type LocaleCatalogBundle = {
   orderedInnerKeysPerNs: Record<string, string[]>;
   multiNamespace: boolean;
   namespaces: string[];
+  /**
+   * When set for a namespace slot, `writeLocaleCatalogBundle` wraps output as `{ [key]: body }`
+   * so JSON that redundantly repeated the namespace at the root keeps the same on-disk shape.
+   */
+  redundantRootOuterKey?: Record<string, string>;
 };
 
 async function readJsonFile(file: string): Promise<unknown | null> {
@@ -62,6 +68,7 @@ export async function loadLocaleCatalogBundle(
   const perNsParsed: Record<string, unknown> = {};
   const orderedLogicalKeys: string[] = [];
   const orderedInnerKeysPerNs: Record<string, string[]> = {};
+  const redundantRootOuterKey: Record<string, string> = {};
 
   if (nss === undefined) {
     const f = files[0]!;
@@ -73,7 +80,13 @@ export async function loadLocaleCatalogBundle(
     if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
       throw new Error(`Missing or invalid catalog: ${f.path}`);
     }
-    const obj = raw as Record<string, unknown>;
+    const defaultNs = config.namespace ?? "translation";
+    const { body, didUnwrap } = unwrapRedundantNamespaceRoot(raw, defaultNs);
+    if (didUnwrap) redundantRootOuterKey[""] = defaultNs;
+    const obj = body as Record<string, unknown>;
+    if (!obj || typeof obj !== "object" || Array.isArray(obj)) {
+      throw new Error(`Missing or invalid catalog: ${f.path}`);
+    }
     perNsParsed[""] = obj;
     const inner = flattenCatalogValues(obj, localeShape);
     const innerOrder =
@@ -91,6 +104,7 @@ export async function loadLocaleCatalogBundle(
       orderedInnerKeysPerNs,
       multiNamespace: false,
       namespaces: [""],
+      ...(Object.keys(redundantRootOuterKey).length ? { redundantRootOuterKey } : {}),
     };
   }
 
@@ -105,7 +119,12 @@ export async function loadLocaleCatalogBundle(
     if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
       throw new Error(`Missing or invalid catalog: ${f.path}`);
     }
-    const obj = raw as Record<string, unknown>;
+    const { body, didUnwrap } = unwrapRedundantNamespaceRoot(raw, ns);
+    if (didUnwrap) redundantRootOuterKey[ns] = ns;
+    const obj = body as Record<string, unknown>;
+    if (!obj || typeof obj !== "object" || Array.isArray(obj)) {
+      throw new Error(`Missing or invalid catalog: ${f.path}`);
+    }
     perNsParsed[ns] = obj;
     const inner = flattenCatalogValues(obj, localeShape);
     const innerOrder =
@@ -127,6 +146,7 @@ export async function loadLocaleCatalogBundle(
     orderedInnerKeysPerNs,
     multiNamespace,
     namespaces: nss,
+    ...(Object.keys(redundantRootOuterKey).length ? { redundantRootOuterKey } : {}),
   };
 }
 
@@ -177,7 +197,11 @@ export async function writeLocaleCatalogBundle(
     const template = defaultBundle.perNsParsed[ns];
     const innerOrder = defaultBundle.orderedInnerKeysPerNs[ns] ?? Object.keys(innerFlat);
 
-    const jsonValue = buildCatalogJsonValue(shape, innerFlat, template, innerOrder);
+    let jsonValue = buildCatalogJsonValue(shape, innerFlat, template, innerOrder);
+    const outer = defaultBundle.redundantRootOuterKey?.[ns];
+    if (outer !== undefined) {
+      jsonValue = { [outer]: jsonValue } as Record<string, unknown>;
+    }
     await fs.mkdir(path.dirname(filePath), { recursive: true });
     await fs.writeFile(filePath, JSON.stringify(jsonValue, null, 2) + "\n", "utf8");
   }

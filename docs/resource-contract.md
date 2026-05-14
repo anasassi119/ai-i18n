@@ -22,6 +22,8 @@ This document is the **single contract** for how **ai-i18n** expects locale file
 
 | **`i18next-namespace`** | **`{localesDir}/{locale}/{namespace}.json`** | One JSON file per `(locale, namespace)` segment. Use **`namespaces`** (array) for multiple files per locale (e.g. `nav.json` + `common.json`). Logical keys merge as **`namespace:inner.path`** when more than one namespace is configured. |
 
+**Redundant namespace root:** the file `translation.json` is **already** the `translation` namespace. Its JSON body should look like `{ "nav": { … } }`, not `{ "translation": { "nav": { … } } }`. If the root object has **only** one key and that key equals the filename namespace (e.g. **`translation`**) whose value is a plain object, the CLI **unwraps** that layer when loading so keys align with **`t('nav.home')`** (`nav.home`), not `translation.nav.home`. The same applies to **`flat`** `en.json` when the sole root key is **`translation`** (using **`namespace`** from config, default **`translation`**). When writing catalogs back, the same outer wrapper is preserved if it was present on load.
+
 Set optional **`namespace`** when using **`i18next-namespace`** with a **single** file per locale (default **`translation`**). Use **`namespaces`** instead when you have several JSON files per locale; **`namespaces`** requires **`resourceFormat": "i18next-namespace"`** and takes precedence over **`namespace`**.
 
 Optional **`localeShape`**: **`flat`** (default) — only top-level string keys in each JSON file. **`nested`** — plain object trees whose **leaves** are strings; logical keys use **dot paths** (e.g. `nav.home`) inside each namespace file. The deprecated config key **`catalogShape`** maps to **`localeShape`** with a one-time console warning.

@@ -129,6 +129,27 @@ function isPlainObject(v: unknown): v is Record<string, unknown> {
 }
 
 /**
+ * Namespace JSON files (e.g. `translation.json`) are already scoped to that namespace.
+ * If the file body is `{ "translation": { ...messages } }`, flattening would produce
+ * `translation.contact.calendly` while `t('contact.calendly')` is `contact.calendly`.
+ * Unwrap to the inner object when the root has a single key equal to `namespace` whose
+ * value is a plain object.
+ */
+export function unwrapRedundantNamespaceRoot(
+  parsed: unknown,
+  namespace: string,
+): { body: unknown; didUnwrap: boolean } {
+  if (!namespace) return { body: parsed, didUnwrap: false };
+  if (!isPlainObject(parsed)) return { body: parsed, didUnwrap: false };
+  const o = parsed;
+  const keys = Object.keys(o);
+  if (keys.length !== 1 || keys[0] !== namespace) return { body: parsed, didUnwrap: false };
+  const inner = o[keys[0]!];
+  if (!isPlainObject(inner)) return { body: parsed, didUnwrap: false };
+  return { body: inner, didUnwrap: true };
+}
+
+/**
  * Infer whether locale JSON should use `nested` flattening: true when any string leaf
  * sits under a nested plain object (values `flattenCatalogValues` would skip in `flat` mode).
  */

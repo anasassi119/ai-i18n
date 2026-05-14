@@ -74,4 +74,25 @@ describe("scanSources + scanContextFromConfig", () => {
     const { keysInCode } = await scanSources(dir, ["src/**/*.tsx"], scanContextFromConfig(cfg()));
     expect(keysInCode.has("nav:deep.key")).toBe(true);
   });
+
+  it("does not treat other string-literal calls (e.g. cn) as translation keys", async () => {
+    const { scanSources } = await import("./scan.js");
+    dir = await mkdtemp(path.join(tmpdir(), "ai-i18n-scan-cn-"));
+    await mkdir(path.join(dir, "src"), { recursive: true });
+    await writeFile(
+      path.join(dir, "src", "Skeleton.tsx"),
+      `
+import { cn } from "@/lib/utils"
+function Skeleton({ className }: { className?: string }) {
+  return (
+    <div className={cn("animate-pulse rounded-none bg-background", className)} />
+  )
+}
+`,
+      "utf8",
+    );
+    const { keysInCode } = await scanSources(dir, ["src/**/*.tsx"], scanContextFromConfig(cfg()));
+    expect(keysInCode.has("animate-pulse rounded-none bg-background")).toBe(false);
+    expect(keysInCode.size).toBe(0);
+  });
 });

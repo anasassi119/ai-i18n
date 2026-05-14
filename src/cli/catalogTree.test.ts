@@ -5,7 +5,31 @@ import {
   mergeMissingKeysIntoParsed,
   namespacedLogicalKey,
   splitNamespacedLogicalKey,
+  unwrapRedundantNamespaceRoot,
 } from "./catalogTree.js";
+
+describe("unwrapRedundantNamespaceRoot", () => {
+  it("unwraps when the file repeats the namespace as the only root key", () => {
+    const wrapped = { translation: { contact: { calendly: "https://x" } } };
+    const r = unwrapRedundantNamespaceRoot(wrapped, "translation");
+    expect(r.didUnwrap).toBe(true);
+    expect(r.body).toEqual({ contact: { calendly: "https://x" } });
+    expect(flattenCatalogValues(r.body, "nested")).toMatchObject({
+      "contact.calendly": "https://x",
+    });
+  });
+
+  it("leaves normal namespace files unchanged", () => {
+    const body = { contact: { calendly: "https://x" } };
+    const r = unwrapRedundantNamespaceRoot(body, "translation");
+    expect(r.didUnwrap).toBe(false);
+    expect(r.body).toBe(body);
+  });
+
+  it("does not unwrap when inner is not a plain object", () => {
+    expect(unwrapRedundantNamespaceRoot({ translation: "x" }, "translation").didUnwrap).toBe(false);
+  });
+});
 
 describe("flattenCatalogValues", () => {
   it("flat shape reads only top-level strings", () => {
