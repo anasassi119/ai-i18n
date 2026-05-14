@@ -65,7 +65,38 @@ export async function runGenerateWithConfig(
   const translatorNotes = await loadTranslatorNotes(cwd, config.localesDir);
 
   const defaultPath = localeCatalogPath(cwd, config, config.defaultLocale);
-  const defaultCatalog = await readCatalog(defaultPath);
+  const localesBase = path.resolve(cwd, config.localesDir);
+  const flatDefaultPath = path.join(localesBase, `${config.defaultLocale}.json`);
+
+  let defaultCatalog: Catalog;
+  try {
+    defaultCatalog = await readCatalog(defaultPath);
+  } catch (err) {
+    if (defaultPath !== flatDefaultPath) {
+      const flatCat = await readJson<Catalog>(flatDefaultPath);
+      if (flatCat && typeof flatCat === "object") {
+        throw new Error(
+          `Missing or invalid catalog: ${defaultPath}\n\n` +
+            `Found a flat default catalog instead: ${flatDefaultPath}\n` +
+            `The CLI inferred i18next-namespace paths from your "i18n" file. If your locale files are one JSON per language (${config.defaultLocale}.json), add to ai-i18n.config.json:\n` +
+            `  "resourceFormat": "flat"\n`,
+        );
+      }
+    } else {
+      const ns = config.namespace && config.namespace.length > 0 ? config.namespace : "translation";
+      const nsDefaultPath = path.join(localesBase, config.defaultLocale, `${ns}.json`);
+      const nsCat = await readJson<Catalog>(nsDefaultPath);
+      if (nsCat && typeof nsCat === "object") {
+        throw new Error(
+          `Missing or invalid catalog: ${defaultPath}\n\n` +
+            `Found a namespace-layout catalog instead: ${nsDefaultPath}\n` +
+            `Add to ai-i18n.config.json:\n` +
+            `  "resourceFormat": "i18next-namespace"\n`,
+        );
+      }
+    }
+    throw err;
+  }
 
   const cacheDir = path.resolve(cwd, config.cacheDir);
   const cache = await readCache(cacheDir);

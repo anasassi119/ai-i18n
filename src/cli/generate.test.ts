@@ -79,4 +79,20 @@ describe("runGenerateWithConfig (i18next-namespace layout)", () => {
     const frRaw = await readFile(path.join(dir, "locales", "fr", "translation.json"), "utf8");
     expect(JSON.parse(frRaw)).toEqual({ welcome: "[fr]Hello" });
   });
+
+  it('suggests "resourceFormat": "flat" when namespace default path is missing but flat en.json exists', async () => {
+    dir = await mkdtemp(path.join(tmpdir(), "ai-i18n-gen-ns-flat-hint-"));
+    await mkdir(path.join(dir, "src"), { recursive: true });
+    await mkdir(path.join(dir, "locales"), { recursive: true });
+    await writeFile(path.join(dir, "locales", "en.json"), "{}\n", "utf8");
+    await writeFile(path.join(dir, "src", "i18n.ts"), nsI18nForGenerate, "utf8");
+
+    await expect(
+      runGenerateWithConfig(
+        dir,
+        baseConfig({ resourceFormat: "i18next-namespace", namespace: "translation" }),
+        false,
+      ),
+    ).rejects.toThrow(/"resourceFormat": "flat"/);
+  });
 });

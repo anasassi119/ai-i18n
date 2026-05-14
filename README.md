@@ -85,6 +85,8 @@ Edit **`locales/translator-notes.json`** (or **`{localesDir}/translator-notes.js
 
 The CLI **parses `i18n`** (static analysis) to derive **`defaultLocale`**, **`locales`**, and usually **`resourceFormat`** / **`namespace`**. You maintain that module yourself (or point `"i18n"` at wherever you already call `i18next.init`). You can override any derived fields in JSON when needed — see [docs/configuration.md](./docs/configuration.md).
 
+If **`generate`** / **`diff`** look for **`locales/en/translation.json`** but you only have **`locales/en.json`** (e.g. after `init` / postinstall), your `i18n` file’s nested `resources` made the CLI infer the wrong on-disk layout — add **`"resourceFormat": "flat"`** to `ai-i18n.config.json`. Details: [docs/configuration.md](./docs/configuration.md#troubleshooting-namespace-path-vs-flat-json-files).
+
 Optional: set `"resourceFormat": "i18next-namespace"` (and `"namespace"` if not `translation`) when inference does not match your layout — see [docs/resource-contract.md](./docs/resource-contract.md).
 
 ### 3. Default locale catalog (flat JSON)
