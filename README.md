@@ -20,7 +20,7 @@
 |---------|-----|
 | **i18next** + **react-i18next** | `useTranslation()`, `t()`, plurals, namespaces, loading, `Trans` |
 | **ai-i18n** | `init` / `generate` / `diff`, scanning keys + **hints**, AI providers, `.env` for API keys |
-| **`ai-i18n/i18next`** (optional) | Turn flat `{ en: {…}, fr: {…} }` catalogs into `i18next.init({ resources })` |
+| **`ai-i18n/i18next`** (optional) | `catalogsToI18nextResources` / `namespaceCatalogFilesToResources` → `i18next.init({ resources })` |
 
 ---
 
@@ -37,7 +37,7 @@ npm install openai
 npm install @anthropic-ai/sdk
 ```
 
-After `npm install ai-i18n`, **postinstall** may create `ai-i18n.config.json` + empty `locales/en.json` and print a short setup reminder (unless `AI_I18N_SKIP_INIT=1`). Details: [docs/install-and-postinstall.md](./docs/install-and-postinstall.md).
+After `npm install ai-i18n`, **postinstall** may create `ai-i18n.config.json` plus an **empty default locale catalog** at the path implied by `resourceFormat` (default: `locales/en.json`) and print a short setup reminder (unless `AI_I18N_SKIP_INIT=1`). Details: [docs/install-and-postinstall.md](./docs/install-and-postinstall.md).
 
 ---
 
@@ -74,6 +74,8 @@ At runtime you use **`react-i18next`** `t` — the pattern above is what the **s
 }
 ```
 
+Optional: set `"resourceFormat": "i18next-namespace"` (and `"namespace"` if not `translation`) so catalogs live under `locales/{locale}/{namespace}.json` — see [docs/resource-contract.md](./docs/resource-contract.md).
+
 ### 3. Default locale catalog (flat JSON)
 
 `locales/en.json` — keys must cover every `t('…')` literal in scanned files:
@@ -100,7 +102,7 @@ Anthropic example: `ANTHROPIC_API_KEY=sk-ant-api03-xxxxxxxx`. More: [docs/enviro
 npx ai-i18n generate
 ```
 
-Writes / updates `locales/fr.json` (and any other `locales` in config) from `en.json` using your provider.
+Writes / updates target locale files from the default catalog (paths depend on `resourceFormat`; default is `locales/fr.json`, etc.).
 
 ### 6. Load JSON into i18next (React)
 
@@ -186,7 +188,7 @@ npx ai-i18n diff              # report drift; exits 1 if anything is wrong (for 
 | [docs/workflows.md](./docs/workflows.md) | CI with `diff`, `missingKey` dev recipe |
 | [docs/environment.md](./docs/environment.md) | API keys, PowerShell |
 | [docs/install-and-postinstall.md](./docs/install-and-postinstall.md) | Lifecycle, rebuild |
-| [ROADMAP.md](./ROADMAP.md) | Phases, acceptance status, Phase 2 backlog |
+| [ROADMAP.md](./ROADMAP.md) | Phases, acceptance status |
 
 ---
 
@@ -194,7 +196,35 @@ npx ai-i18n diff              # report drift; exits 1 if anything is wrong (for 
 
 - Scanner: **`t('stringLiteral', …)`** only — no dynamic or template-literal keys.
 - **`hint`**: string literal in source for CLI; not an i18next option at runtime.
-- **Output**: **flat** `key → string` JSON per locale file; plural/ICU/nested resource shapes are **i18next-side** until [Phase 2](./ROADMAP.md#phase-2--cli-alignment-with-i18next-layouts).
+- **Output layout:** default **`resourceFormat: flat`** (`{locale}.json`); optional **`i18next-namespace`** (`{locale}/{namespace}.json`). Still **flat** `key → string` inside each JSON file; plural/ICU/nested resource shapes beyond that are **i18next-side** — see [docs/resource-contract.md](./docs/resource-contract.md).
+
+---
+
+## FAQs
+
+**Does the CLI require i18next in the same repo?**  
+No. **`ai-i18n`** only reads your source and JSON catalogs and calls your chosen provider. Your **application** should depend on **i18next** (and usually **react-i18next**) to load the JSON at runtime.
+
+**Why is a key missing from `generate` / `diff`?**  
+The scanner only sees **`t('stringLiteral', …)`** — the callee must be named **`t`**, and the first argument must be a **string literal**. Dynamic keys, variables, or template literals are ignored. Add the key and source string to the **default locale** catalog file, then run **`generate`**.
+
+**What is `hint` for?**  
+An optional **string literal** in the second argument (e.g. `t('welcome', { hint: '…' })`) gives translators UI context. It is **not** an i18next option; do not pass **`hint`** through to production **`t()`** unless you strip it. See [resource-contract.md](./docs/resource-contract.md).
+
+**What is the difference between `flat` and `i18next-namespace`?**  
+**`flat`** (default): one file per locale, e.g. `locales/en.json`. **`i18next-namespace`**: one namespace file per locale, e.g. `locales/en/translation.json`. The JSON inside is still a flat `key → string` map. Configure in [`ai-i18n.config.json`](./docs/configuration.md); **`diff`** and **`generate`** use the same paths.
+
+**Can the CLI scan multiple namespace files per locale?**  
+Not in the current release. Phase 2 v1 compares code keys to the **single** default-locale catalog path for your layout. Multiple on-disk namespaces and richer key syntax are [backlog](./ROADMAP.md).
+
+**How do I skip postinstall creating config / locale files?**  
+Set **`AI_I18N_SKIP_INIT=1`** in the environment when installing. Details: [docs/install-and-postinstall.md](./docs/install-and-postinstall.md).
+
+**What should I run in CI?**  
+Typically **`npx ai-i18n diff`** (non-zero exit on drift). It respects **`resourceFormat`**. See [docs/workflows.md](./docs/workflows.md).
+
+**Which env vars hold API keys?**  
+**OpenAI:** `OPENAI_API_KEY`. **Anthropic:** `ANTHROPIC_API_KEY`. The CLI loads **`.env`** from the project root; shell env wins over `.env`. See [docs/environment.md](./docs/environment.md).
 
 ---
 
@@ -222,7 +252,7 @@ npx ai-i18n diff              # report drift; exits 1 if anything is wrong (for 
 
 ## Roadmap
 
-[ROADMAP.md](./ROADMAP.md) — Phase **1** and **3** acceptance **met**; Phase **2** (alternate `resourceFormat` / namespaces) is the next milestone.
+[ROADMAP.md](./ROADMAP.md) — Phase **1**, **2**, and **3** acceptance **met** for current scope; further scanner / format work remains in the roadmap backlog.
 
 ## Publish checklist (maintainers)
 

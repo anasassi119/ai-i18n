@@ -17,3 +17,24 @@ export function catalogsToI18nextResources(
   }
   return resources;
 }
+
+export type NamespaceCatalogFileEntry = {
+  lng: string;
+  namespace: string;
+  catalog: Record<string, string>;
+};
+
+/**
+ * Builds `i18next.init({ resources })` from per-file namespace catalogs
+ * (e.g. JSON loaded from `{catalogDir}/{lng}/{ns}.json` when using `resourceFormat: "i18next-namespace"`).
+ * Same-language, same-namespace entries are shallow-merged in array order.
+ */
+export function namespaceCatalogFilesToResources(entries: NamespaceCatalogFileEntry[]): Resource {
+  const resources: Resource = {};
+  for (const { lng, namespace, catalog } of entries) {
+    if (!resources[lng]) resources[lng] = {};
+    const prev = resources[lng][namespace] as Record<string, string> | undefined;
+    resources[lng][namespace] = { ...prev, ...catalog };
+  }
+  return resources;
+}

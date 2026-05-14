@@ -9,7 +9,7 @@
 | Phase | What “done” means | Status |
 |-------|-------------------|--------|
 | **1** | [`docs/resource-contract.md`](./docs/resource-contract.md), cross-links, explicit plural / `hint` stance; no claim that `generate` emits i18next plural trees | **Met** |
-| **2** | `resourceFormat`, namespace-aware writes, tests per format, `diff` semantics for new layouts ([criteria below](#phase-2--cli-alignment-with-i18next-layouts)) | **Not started** (next milestone) |
+| **2** | `resourceFormat`, namespace-aware writes, tests per format, `diff` semantics for new layouts ([criteria below](#phase-2--cli-alignment-with-i18next-layouts)) | **Met** |
 | **3** | [`docs/workflows.md`](./docs/workflows.md) with CI + `missingKey` recipes; framework-agnostic | **Met** (optional hint sidecar + `generate --check` still [backlog](#phase-3--ergonomics--editor-workflow)) |
 
 ---
@@ -47,11 +47,11 @@
 
 **Acceptance criteria**
 
-- [ ] Default behavior unchanged for existing `ai-i18n.config.json` without new fields.
-- [ ] At least one non-default format covered by tests and documented.
-- [ ] `diff` semantics defined for new layout (same mental model: default catalog drives key set).
+- [x] Default behavior unchanged for existing `ai-i18n.config.json` without new fields.
+- [x] At least one non-default format covered by tests and documented.
+- [x] `diff` semantics defined for new layout (same mental model: default catalog drives key set).
 
-**Dependencies:** Phase 1 contract doc (done — see [docs/resource-contract.md](./docs/resource-contract.md)).
+**Deferred / future:** scanner support for multiple namespaces per locale, `ns:key` keys, and nested JSON keys remain backlog (see [Stretch](#stretch-backlog-unprioritized)).
 
 ---
 
@@ -70,13 +70,14 @@
 - [x] `docs/` includes a “Workflows” or “Recipes” page with copy-paste i18next + CLI snippets.
 - [x] No requirement to use a specific framework beyond i18next + optional React doc.
 
-**Dependencies:** Phase 1 (docs structure); Phase 2 optional but recipes should mention flat + any shipped `resourceFormat`.
+**Dependencies:** Phase 1 (docs structure); recipes cover `resourceFormat: flat` (default) and `i18next-namespace` where relevant.
 
 ---
 
 ## Stretch (backlog, unprioritized)
 
 - Watch mode / IDE extension (separate repo possible).
+- **Scanner:** multiple namespace files per locale, `ns:key` literals, nested JSON key paths (beyond Phase 2 v1).
 - **OpenAI Responses / newer APIs** behind `model` or provider version flag.
 - Official **Next.js App Router** + RSC note (loading JSON, no `hint` on server components unless stripped).
 
@@ -92,6 +93,6 @@
 ## How we use this file
 
 1. **Phase 1** is complete (resource contract + cross-links + plural stance documented).
-2. **Phase 2** is a breaking or additive semver decision per format—bump minor vs major when introducing `resourceFormat` defaults that change paths.
+2. **Phase 2** shipped as a **minor** bump (`resourceFormat` default preserves existing paths).
 3. **Phase 3** docs shipped (`docs/workflows.md`); optional code (hint sidecar, `generate --check`) remains backlog.
 4. Close roadmap implementation via PRs referencing this document.

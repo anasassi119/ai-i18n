@@ -2,6 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import type { AitConfig } from "./config.js";
 import { loadConfig } from "./config.js";
+import { localeCatalogPath } from "./catalogLayout.js";
 import { hashSource } from "./hash.js";
 import { scanSources, writeHintsFile } from "./scan.js";
 import { resolveTranslator } from "./translate/factory.js";
@@ -63,8 +64,7 @@ export async function runGenerateWithConfig(
   const scan = await scanSources(cwd, config.sourceGlobs);
   await writeHintsFile(path.resolve(cwd, config.cacheDir), scan.hints);
 
-  const catalogDir = path.resolve(cwd, config.catalogDir);
-  const defaultPath = path.join(catalogDir, `${config.defaultLocale}.json`);
+  const defaultPath = localeCatalogPath(cwd, config, config.defaultLocale);
   const defaultCatalog = await readCatalog(defaultPath);
 
   const cacheDir = path.resolve(cwd, config.cacheDir);
@@ -76,7 +76,7 @@ export async function runGenerateWithConfig(
   for (const locale of config.locales) {
     if (locale === config.defaultLocale) continue;
 
-    const targetPath = path.join(catalogDir, `${locale}.json`);
+    const targetPath = localeCatalogPath(cwd, config, locale);
     const existing = (await readJson<Catalog>(targetPath)) ?? {};
     const localeCache = { ...(cache[locale] ?? {}) };
 
@@ -143,7 +143,7 @@ export async function runGenerateWithConfig(
         const prev = existing[key];
         if (prev === undefined || prev === "") {
           throw new Error(
-            `[ai-i18n] Missing translation for "${key}" in ${locale}.json — run generate without skipping this key (check default catalog).`,
+            `[ai-i18n] Missing translation for "${key}" in ${path.relative(cwd, targetPath)} — run generate without skipping this key (check default catalog).`,
           );
         }
         merged[key] = prev;

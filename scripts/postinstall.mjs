@@ -121,7 +121,7 @@ async function findConsumerRoot(installedAt) {
   return null;
 }
 
-/** Create `{catalogDir}/{defaultLocale}.json` as `{}` when missing (same rules as `ai-i18n init`). */
+/** Create default locale catalog as `{}` when missing (same rules as `ai-i18n init`). */
 async function bootstrapDefaultCatalog(root, configPath) {
   let raw;
   try {
@@ -138,10 +138,28 @@ async function bootstrapDefaultCatalog(root, configPath) {
   if (!parsed || typeof parsed !== "object") return;
   const catalogDir = typeof parsed.catalogDir === "string" ? parsed.catalogDir : "locales";
   const defaultLocale = typeof parsed.defaultLocale === "string" ? parsed.defaultLocale : "en";
-  const dirAbs = path.resolve(root, catalogDir);
-  const fileAbs = path.join(dirAbs, `${defaultLocale}.json`);
+  const rf = parsed.resourceFormat;
+  let resourceFormat;
+  if (rf === "flat" || rf === "i18next-namespace") {
+    resourceFormat = rf;
+  } else {
+    resourceFormat = undefined;
+  }
+  const nsRaw = parsed.namespace;
+  const namespace =
+    typeof nsRaw === "string" && nsRaw.trim() !== "" ? nsRaw.trim() : undefined;
+
+  const base = path.resolve(root, catalogDir);
+  const fmt = resourceFormat ?? "flat";
+  let fileAbs;
+  if (fmt === "flat") {
+    fileAbs = path.join(base, `${defaultLocale}.json`);
+  } else {
+    const n = namespace && namespace.length > 0 ? namespace : "translation";
+    fileAbs = path.join(base, defaultLocale, `${n}.json`);
+  }
   if (await exists(fileAbs)) return;
-  await mkdir(dirAbs, { recursive: true });
+  await mkdir(path.dirname(fileAbs), { recursive: true });
   await writeFile(fileAbs, "{}\n", "utf8");
   console.log(`[ai-i18n] Created ${path.relative(root, fileAbs)} (empty default catalog).`);
 }

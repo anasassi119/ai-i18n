@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { loadConfig } from "./config.js";
+import { localeCatalogPath } from "./catalogLayout.js";
 import { scanSources } from "./scan.js";
 
 type Catalog = Record<string, string>;
@@ -23,8 +24,7 @@ async function readJson<T>(file: string): Promise<T | null> {
 export async function runDiff(cwd: string): Promise<DiffResult> {
   const { config } = await loadConfig(cwd);
   const scan = await scanSources(cwd, config.sourceGlobs);
-  const catalogDir = path.resolve(cwd, config.catalogDir);
-  const defaultPath = path.join(catalogDir, `${config.defaultLocale}.json`);
+  const defaultPath = localeCatalogPath(cwd, config, config.defaultLocale);
   const defaultCatalog = (await readJson<Catalog>(defaultPath)) ?? {};
 
   const keysInDefault = new Set(
@@ -56,17 +56,18 @@ export async function runDiff(cwd: string): Promise<DiffResult> {
 
   for (const locale of config.locales) {
     if (locale === config.defaultLocale) continue;
-    const targetPath = path.join(catalogDir, `${locale}.json`);
+    const targetPath = localeCatalogPath(cwd, config, locale);
+    const targetRel = path.relative(cwd, targetPath);
     const target = (await readJson<Catalog>(targetPath)) ?? {};
     const missing: string[] = [];
     for (const k of keysInDefault) {
       if (target[k] === undefined || target[k] === "") missing.push(k);
     }
     if (missing.length) {
-      console.log(`[ai-i18n] Keys missing or empty in ${locale}.json:`);
+      console.log(`[ai-i18n] Keys missing or empty in ${targetRel}:`);
       for (const k of missing.sort()) console.log(`  - ${k}`);
     } else {
-      console.log(`[ai-i18n] ${locale}.json: no missing keys for default set.`);
+      console.log(`[ai-i18n] ${targetRel}: no missing keys for default set.`);
     }
 
     const staleInTarget: string[] = [];
@@ -75,7 +76,7 @@ export async function runDiff(cwd: string): Promise<DiffResult> {
     }
     if (staleInTarget.length) {
       console.log(
-        `[ai-i18n] Keys in ${locale}.json but not in default catalog (removed/renamed in default; run generate to prune):`,
+        `[ai-i18n] Keys in ${targetRel} but not in default catalog (removed/renamed in default; run generate to prune):`,
       );
       for (const k of staleInTarget.sort()) console.log(`  - ${k}`);
     }

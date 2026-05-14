@@ -1,6 +1,8 @@
 import { access, mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import type { ResourceFormat } from "./config.js";
+import { localeCatalogPathFromParts } from "./catalogLayout.js";
 
 function packageRootFromCli(): string {
   const here = path.dirname(fileURLToPath(import.meta.url));
@@ -37,10 +39,26 @@ export async function bootstrapDefaultCatalogIfNeeded(
   const o = parsed as Record<string, unknown>;
   const catalogDir = typeof o.catalogDir === "string" ? o.catalogDir : "locales";
   const defaultLocale = typeof o.defaultLocale === "string" ? o.defaultLocale : "en";
-  const dirAbs = path.resolve(cwd, catalogDir);
-  const fileAbs = path.join(dirAbs, `${defaultLocale}.json`);
+  const resourceFormatRaw = o.resourceFormat;
+  let resourceFormat: ResourceFormat | undefined;
+  if (resourceFormatRaw === "flat" || resourceFormatRaw === "i18next-namespace") {
+    resourceFormat = resourceFormatRaw;
+  } else if (resourceFormatRaw !== undefined && resourceFormatRaw !== null) {
+    return false;
+  }
+  const namespaceRaw = o.namespace;
+  const namespace =
+    typeof namespaceRaw === "string" && namespaceRaw.trim() !== "" ? namespaceRaw.trim() : undefined;
+
+  const fileAbs = localeCatalogPathFromParts(
+    cwd,
+    catalogDir,
+    defaultLocale,
+    resourceFormat,
+    resourceFormat === "i18next-namespace" ? namespace : undefined,
+  );
   if (await fileExists(fileAbs)) return false;
-  await mkdir(dirAbs, { recursive: true });
+  await mkdir(path.dirname(fileAbs), { recursive: true });
   await writeFile(fileAbs, "{}\n", "utf8");
   if (!silent) {
     console.log(`[ai-i18n] Created ${path.relative(cwd, fileAbs)} (empty default catalog).`);

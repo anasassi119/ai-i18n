@@ -2,7 +2,7 @@
 
 **ai-i18n** fills **JSON locale files** on disk. **i18next** (and usually **react-i18next**) loads them at runtime. **`npm install ai-i18n` does not install i18next** — run `npm install i18next react-i18next` (and **`openai`** or **`@anthropic-ai/sdk`** per your `provider`) in your application.
 
-**Contract:** flat `catalogDir/{locale}.json` and plural/hint rules are documented in [resource-contract.md](./resource-contract.md). **CI / `missingKey`:** [workflows.md](./workflows.md).
+**Contract:** on-disk layout (`resourceFormat`, default flat) and plural/hint rules: [resource-contract.md](./resource-contract.md). **CI / `missingKey`:** [workflows.md](./workflows.md).
 
 ## 1. Generate catalogs
 
@@ -11,7 +11,7 @@ npx ai-i18n init
 npx ai-i18n generate
 ```
 
-You get flat key → string maps per file, e.g. `locales/en.json`, `locales/fr.json`, compatible with a single default namespace in i18next.
+You get flat key → string maps per file. With default **`resourceFormat`** that is `locales/en.json`, `locales/fr.json`. With **`resourceFormat`: `i18next-namespace`**, files are e.g. `locales/en/translation.json` — still flat JSON inside each file, aligned with a single i18next namespace per file.
 
 ## 2. Load into i18next
 
@@ -53,6 +53,27 @@ void i18next.use(initReactI18next).init({
 });
 ```
 
+### Option C — namespace files on disk (`i18next-namespace`)
+
+If each locale uses **`{catalogDir}/{lng}/{namespace}.json`** (see config `resourceFormat`), load the JSON in Node or the bundler and merge into `resources`:
+
+```ts
+import i18next from "i18next";
+import { initReactI18next } from "react-i18next";
+import { namespaceCatalogFilesToResources } from "ai-i18n/i18next";
+import en from "./locales/en/translation.json";
+import fr from "./locales/fr/translation.json";
+
+void i18next.use(initReactI18next).init({
+  resources: namespaceCatalogFilesToResources([
+    { lng: "en", namespace: "translation", catalog: en },
+    { lng: "fr", namespace: "translation", catalog: fr },
+  ]),
+  lng: "en",
+  fallbackLng: "en",
+});
+```
+
 ## 3. React
 
 ```tsx
@@ -72,5 +93,5 @@ Tested in this repo’s devDependencies with **i18next `^24`**; use **i18next `>
 
 ## Next steps
 
-- Pluralization and structured messages: see [resource-contract.md](./resource-contract.md) (today the CLI outputs **flat strings**; advanced shapes are i18next-side until [Phase 2](../ROADMAP.md#phase-2--cli-alignment-with-i18next-layouts)).
+- Pluralization and structured messages: see [resource-contract.md](./resource-contract.md) (the CLI outputs **flat strings** per key; advanced shapes are i18next-side).
 - [workflows.md](./workflows.md) — CI with `diff`, `missingKey` dev handler pattern.

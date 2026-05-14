@@ -1,6 +1,6 @@
 # Workflows & recipes
 
-Patterns for **i18next** + **ai-i18n** in development and CI. Assumes the [resource contract](./resource-contract.md) (flat `catalogDir/{locale}.json`).
+Patterns for **i18next** + **ai-i18n** in development and CI. Paths follow [resource-contract.md](./resource-contract.md) (`resourceFormat`, default `flat`). **`ai-i18n diff`** uses the same layout as **`generate`** from your config.
 
 ---
 

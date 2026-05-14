@@ -56,4 +56,31 @@ describe("bootstrapDefaultCatalogIfNeeded", () => {
       await rm(dir, { recursive: true, force: true });
     }
   });
+
+  it("bootstraps default catalog at locale/namespace.json for i18next-namespace", async () => {
+    const dir = await mkdtemp(path.join(tmpdir(), "ai-i18n-boot-ns-"));
+    try {
+      await writeFile(
+        path.join(dir, "ai-i18n.config.json"),
+        JSON.stringify({
+          catalogDir: "locales",
+          defaultLocale: "en",
+          sourceGlobs: ["x"],
+          locales: ["fr"],
+          resourceFormat: "i18next-namespace",
+        }),
+        "utf8",
+      );
+      const created = await bootstrapDefaultCatalogIfNeeded(
+        dir,
+        path.join(dir, "ai-i18n.config.json"),
+        true,
+      );
+      expect(created).toBe(true);
+      const raw = await readFile(path.join(dir, "locales", "en", "translation.json"), "utf8");
+      expect(JSON.parse(raw)).toEqual({});
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
 });

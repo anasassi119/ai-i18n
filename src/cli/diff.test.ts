@@ -36,6 +36,49 @@ async function writeLayout(
   }
 }
 
+async function writeLayoutI18nextNamespace(
+  dir: string,
+  opts: {
+    appKey: string;
+    enKeys: Record<string, string>;
+    frKeys?: Record<string, string>;
+  },
+) {
+  await mkdir(path.join(dir, "src"), { recursive: true });
+  await mkdir(path.join(dir, "locales", "en"), { recursive: true });
+  await writeFile(
+    path.join(dir, "ai-i18n.config.json"),
+    JSON.stringify({
+      sourceGlobs: ["src/**/*.tsx"],
+      defaultLocale: "en",
+      locales: ["fr"],
+      catalogDir: "locales",
+      provider: "openai",
+      resourceFormat: "i18next-namespace",
+      namespace: "translation",
+    }),
+    "utf8",
+  );
+  await writeFile(
+    path.join(dir, "src", "App.tsx"),
+    `declare function t(key: string, opts?: Record<string, unknown>): string;\nexport function X() { return <span>{t("${opts.appKey}", { hint: "h" })}</span>; }\n`,
+    "utf8",
+  );
+  await writeFile(
+    path.join(dir, "locales", "en", "translation.json"),
+    JSON.stringify(opts.enKeys, null, 2) + "\n",
+    "utf8",
+  );
+  if (opts.frKeys !== undefined) {
+    await mkdir(path.join(dir, "locales", "fr"), { recursive: true });
+    await writeFile(
+      path.join(dir, "locales", "fr", "translation.json"),
+      JSON.stringify(opts.frKeys, null, 2) + "\n",
+      "utf8",
+    );
+  }
+}
+
 describe("runDiff", () => {
   let dir: string;
 
@@ -74,5 +117,16 @@ describe("runDiff", () => {
     });
     const { ok } = await runDiff(dir);
     expect(ok).toBe(false);
+  });
+
+  it("returns ok for i18next-namespace layout when aligned", async () => {
+    dir = await mkdtemp(path.join(tmpdir(), "ai-i18n-diff-ns-"));
+    await writeLayoutI18nextNamespace(dir, {
+      appKey: "welcome",
+      enKeys: { welcome: "Hello" },
+      frKeys: { welcome: "Bonjour" },
+    });
+    const { ok } = await runDiff(dir);
+    expect(ok).toBe(true);
   });
 });

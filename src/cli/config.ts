@@ -3,6 +3,9 @@ import { resolve } from "node:path";
 
 export type Provider = "openai" | "anthropic";
 
+/** How locale files are laid out under `catalogDir`. Default: `flat`. */
+export type ResourceFormat = "flat" | "i18next-namespace";
+
 export interface AitConfig {
   sourceGlobs: string[];
   defaultLocale: string;
@@ -12,6 +15,10 @@ export interface AitConfig {
   cacheDir: string;
   provider: Provider;
   model?: string;
+  /** Default `flat`. `i18next-namespace` uses `{catalogDir}/{locale}/{namespace}.json`. */
+  resourceFormat?: ResourceFormat;
+  /** Used when `resourceFormat` is `i18next-namespace`; default `translation`. */
+  namespace?: string;
 }
 
 export async function loadConfig(cwd: string): Promise<{ path: string; config: AitConfig }> {
@@ -59,6 +66,38 @@ export async function loadConfig(cwd: string): Promise<{ path: string; config: A
   const cacheDirRaw = o.cacheDir;
   const cacheDir = typeof cacheDirRaw === "string" ? cacheDirRaw : ".ai-i18n";
 
+  const resourceFormatRaw = o.resourceFormat;
+  let resourceFormat: ResourceFormat = "flat";
+  if (resourceFormatRaw !== undefined && resourceFormatRaw !== null) {
+    if (resourceFormatRaw === "flat" || resourceFormatRaw === "i18next-namespace") {
+      resourceFormat = resourceFormatRaw;
+    } else {
+      throw new Error(
+        'ai-i18n.config.json: resourceFormat must be "flat" or "i18next-namespace"',
+      );
+    }
+  }
+
+  const namespaceRaw = o.namespace;
+  let namespace: string | undefined;
+  if (resourceFormat === "i18next-namespace") {
+    if (namespaceRaw !== undefined && namespaceRaw !== null) {
+      if (typeof namespaceRaw !== "string" || namespaceRaw.trim() === "") {
+        throw new Error("ai-i18n.config.json: namespace must be a non-empty string when set");
+      }
+      namespace = namespaceRaw.trim();
+    } else {
+      namespace = "translation";
+    }
+  } else if (namespaceRaw !== undefined && namespaceRaw !== null) {
+    if (typeof namespaceRaw !== "string") {
+      throw new Error("ai-i18n.config.json: namespace must be a string when set");
+    }
+    throw new Error(
+      'ai-i18n.config.json: "namespace" is only used when resourceFormat is "i18next-namespace"',
+    );
+  }
+
   const config: AitConfig = {
     sourceGlobs,
     defaultLocale,
@@ -67,6 +106,8 @@ export async function loadConfig(cwd: string): Promise<{ path: string; config: A
     cacheDir,
     provider,
     ...(typeof model === "string" ? { model } : {}),
+    ...(resourceFormat !== "flat" ? { resourceFormat } : {}),
+    ...(namespace !== undefined ? { namespace } : {}),
   };
   return { path, config };
 }

@@ -12,7 +12,8 @@ Place at the **project root** (where you run the CLI).
   "catalogDir": "locales",
   "cacheDir": ".ai-i18n",
   "provider": "openai",
-  "model": "gpt-5-mini"
+  "model": "gpt-5-mini",
+  "resourceFormat": "flat"
 }
 ```
 
@@ -21,12 +22,14 @@ Place at the **project root** (where you run the CLI).
 | Field | Required | Description |
 |--------|----------|-------------|
 | `sourceGlobs` | yes | Glob patterns for files to scan. |
-| `defaultLocale` | yes | Source catalog: `{catalogDir}/{defaultLocale}.json`. |
-| `locales` | yes | Target locale codes (`{code}.json`). Default locale is skipped for generation. |
-| `catalogDir` | yes | Directory of locale JSON files. |
+| `defaultLocale` | yes | Source catalog path depends on `resourceFormat` (see [resource-contract.md](./resource-contract.md)). |
+| `locales` | yes | Target locale codes. Default locale is skipped for generation. |
+| `catalogDir` | yes | Directory of locale JSON files (layout under it follows `resourceFormat`). |
 | `cacheDir` | no (default `.ai-i18n`) | `.ai-i18n-cache.json`, `.ai-i18n-hints.json`. |
 | `provider` | no (defaults to `openai` if omitted) | `openai` \| `anthropic`. **Generated** default from `init` / postinstall is `openai`. |
 | `model` | no | Provider model id. OpenAI CLI default when omitted: **`gpt-5-mini`**. |
+| `resourceFormat` | no (default `flat`) | `flat` → `{catalogDir}/{locale}.json`. `i18next-namespace` → `{catalogDir}/{locale}/{namespace}.json`. |
+| `namespace` | no | Used only with `resourceFormat: "i18next-namespace"`; default **`translation`**. Must be omitted when `resourceFormat` is `flat` (or omitted). |
 
 ## Runtime vs this file
 
