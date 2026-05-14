@@ -89,6 +89,29 @@ If **`generate`** / **`diff`** look for **`locales/en/translation.json`** but yo
 
 Optional: set `"resourceFormat": "i18next-namespace"` (and `"namespace"` if not `translation`) when inference does not match your layout — see [docs/resource-contract.md](./docs/resource-contract.md).
 
+#### `ai-i18n.config.json` — every key and allowed values
+
+| Key | JSON type | Allowed values / notes |
+|-----|-----------|-------------------------|
+| `sourceGlobs` | array of strings | **Required.** Glob patterns (e.g. `["src/**/*.{tsx,ts,jsx,js}"]`). Each entry must be a string. |
+| `localesDir` | string | **Required.** Project-relative directory for locale JSON and `translator-notes.json`. |
+| `i18n` | string or omit | **Optional.** Project-relative path to a module that contains a static `*.init({...})` i18next-style call. Non-empty string, or omit / leave unset for catalog-only mode (then `defaultLocale`, `locales`, and layout fields below are **required** in JSON). |
+| `defaultLocale` | string | **Required if `i18n` is omitted:** non-empty locale code. **If `i18n` is set:** optional; overrides the value inferred from the init module. |
+| `locales` | array of strings | **Required if `i18n` is omitted:** non-empty; each element a locale code string. **If `i18n` is set:** optional; overrides inferred list. Must include `defaultLocale` (the CLI prepends it if missing). |
+| `resourceFormat` | string | **`"flat"`** or **`"i18next-namespace"`**. Omitted in the merged runtime config when `flat` (still valid in JSON). Flat: `{localesDir}/{locale}.json`. Namespace: `{localesDir}/{locale}/{namespace}.json`. |
+| `namespace` | string | **Only when `resourceFormat` is `"i18next-namespace"`:** non-empty basename of the JSON file (without `.json`), e.g. `"translation"`. Must be **omitted** when `resourceFormat` is `flat`. Ignored when `namespaces` is set. |
+| `namespaces` | array of strings | **Only when `resourceFormat` is `"i18next-namespace"`:** non-empty strings (JSON basenames without `.json`), e.g. `["nav","common"]`. If `i18n` is omitted, **either** `namespace` **or** `namespaces` is required for namespace layout. |
+| `localeShape` | string | **`"flat"`** or **`"nested"`** — how string keys are stored **inside** each locale file (`flat`: top-level string values only; `nested`: dotted keys from nested objects). |
+| `catalogShape` | string | **Deprecated.** Same allowed values as `localeShape` (`"flat"` \| `"nested"`). Emits a one-time warning; use `localeShape`. |
+| `localesAutoDiscover` | boolean | **Only `true` is honored** (exact boolean `true`). When set, `locales` is replaced by scanning `localesDir` (flat: `*.json` except `translator-notes`; namespace: subdirectories). `defaultLocale` stays first. |
+| `provider` | string | **`"openai"`** or **`"anthropic"`**. Omitted defaults to `"openai"`. **`"stub"`** is rejected. |
+| `model` | string | Optional provider model id (e.g. OpenAI default in template is `gpt-5-mini`). Must be a string when present. |
+| `cacheDir` | string | Optional. Directory for `.ai-i18n-cache.json`. Default **`".ai-i18n"`** if omitted. |
+
+**Rejected / errors:** `catalogDir` without `localesDir` (rename to `localesDir`). Unknown `provider`. `namespace` or `namespaces` with `resourceFormat` `flat`. `namespaces` without `resourceFormat` `"i18next-namespace"`. Invalid `resourceFormat`, `localeShape`, or `catalogShape` values.
+
+Full narrative and troubleshooting: [docs/configuration.md](./docs/configuration.md).
+
 ### 3. Default locale catalog (flat JSON)
 
 `locales/en.json` — keys must cover every `t('…')` literal in scanned files:
