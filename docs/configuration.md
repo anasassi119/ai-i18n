@@ -49,10 +49,6 @@ If your real catalogs are **flat** (`{locale}.json`), add:
 
 If your catalogs really live under **`{locale}/{namespace}.json`**, keep the inferred layout (or set `"resourceFormat": "i18next-namespace"` and optional `"namespace"`).
 
-## v4 breaking change: `catalogDir`
-
-**`catalogDir` was renamed to `localesDir`.** A config that still has **`catalogDir`** without **`localesDir`** is rejected with a migration error.
-
 ## Runtime vs this file
 
 This file is for the **CLI** only. **i18next** loads translations from the JSON (or bundles) you provide in your app — see [i18next integration](./i18next.md).

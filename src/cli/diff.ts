@@ -89,6 +89,11 @@ export async function runDiff(cwd: string, options: RunDiffOptions = {}): Promis
   if (inCodeNotDefault.length) {
     console.log("[ai-i18n] Keys in code but missing in default catalog:");
     for (const k of inCodeNotDefault.sort()) console.log(`  - ${k}`);
+    if (!options.addMissingToDefault) {
+      console.log(
+        "[ai-i18n] Run with: npx ai-i18n diff --add-missing-default — to add the missing keys to the default locale catalog (empty values); then edit strings and run generate.",
+      );
+    }
   } else {
     console.log("[ai-i18n] No keys in code missing from default catalog.");
   }

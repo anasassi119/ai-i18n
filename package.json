@@ -1,6 +1,6 @@
 {
   "name": "ai-i18n",
-  "version": "4.2.0",
+  "version": "4.2.1",
   "description": "CLI for AI-assisted translation of i18next locale JSON, generate and diff catalogs (OpenAI / Anthropic).",
   "type": "module",
   "exports": {
