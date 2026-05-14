@@ -205,3 +205,75 @@ describe("runGenerateWithConfig (i18next-namespace layout)", () => {
     ).rejects.toThrow(/"resourceFormat": "flat"/);
   });
 });
+
+describe("runGenerateWithConfig (nested localeShape)", () => {
+  let dir: string;
+
+  afterEach(async () => {
+    if (dir) await rm(dir, { recursive: true, force: true });
+  });
+
+  it("writes nested JSON preserving structure", async () => {
+    dir = await mkdtemp(path.join(tmpdir(), "ai-i18n-gen-nested-"));
+    await mkdir(path.join(dir, "src"), { recursive: true });
+    await mkdir(path.join(dir, "locales"), { recursive: true });
+    await writeFile(path.join(dir, "src", "i18n.ts"), flatI18nForGenerate, "utf8");
+    await writeFile(
+      path.join(dir, "locales", "en.json"),
+      JSON.stringify({ nav: { home: "Home" }, page: { title: "T" } }, null, 2) + "\n",
+      "utf8",
+    );
+
+    await runGenerateWithConfig(
+      dir,
+      baseConfig({ resourceFormat: "flat", localeShape: "nested", locales: ["en", "fr"] }),
+      false,
+    );
+
+    const frRaw = await readFile(path.join(dir, "locales", "fr.json"), "utf8");
+    expect(JSON.parse(frRaw)).toEqual({
+      nav: { home: "[fr]Home" },
+      page: { title: "[fr]T" },
+    });
+  });
+});
+
+describe("runGenerateWithConfig (multi-namespace)", () => {
+  let dir: string;
+
+  afterEach(async () => {
+    if (dir) await rm(dir, { recursive: true, force: true });
+  });
+
+  it("writes one target file per namespace", async () => {
+    dir = await mkdtemp(path.join(tmpdir(), "ai-i18n-gen-multins-"));
+    await mkdir(path.join(dir, "src"), { recursive: true });
+    await mkdir(path.join(dir, "locales", "en"), { recursive: true });
+    await writeFile(path.join(dir, "src", "i18n.ts"), nsI18nForGenerate, "utf8");
+    await writeFile(
+      path.join(dir, "locales", "en", "nav.json"),
+      JSON.stringify({ link: "Nav link" }, null, 2) + "\n",
+      "utf8",
+    );
+    await writeFile(
+      path.join(dir, "locales", "en", "common.json"),
+      JSON.stringify({ ok: "OK" }, null, 2) + "\n",
+      "utf8",
+    );
+
+    await runGenerateWithConfig(
+      dir,
+      baseConfig({
+        resourceFormat: "i18next-namespace",
+        namespaces: ["nav", "common"],
+        locales: ["en", "fr"],
+      }),
+      false,
+    );
+
+    const navFr = JSON.parse(await readFile(path.join(dir, "locales", "fr", "nav.json"), "utf8"));
+    const commonFr = JSON.parse(await readFile(path.join(dir, "locales", "fr", "common.json"), "utf8"));
+    expect(navFr).toEqual({ link: "[fr]Nav link" });
+    expect(commonFr).toEqual({ ok: "[fr]OK" });
+  });
+});

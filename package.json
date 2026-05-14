@@ -1,6 +1,6 @@
 {
   "name": "ai-i18n",
-  "version": "4.3.0",
+  "version": "4.4.0",
   "description": "CLI for AI-assisted translation of i18next locale JSON, generate and diff catalogs (OpenAI / Anthropic).",
   "type": "module",
   "exports": {
@@ -17,10 +17,8 @@
     "dist/i18next.js",
     "dist/i18next.d.ts",
     "templates",
-    "scripts",
     "README.md",
     "LICENSE",
-    "ROADMAP.md",
     "docs"
   ],
   "scripts": {
@@ -28,8 +26,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
-    "prepack": "npm run build",
-    "postinstall": "node ./scripts/postinstall.mjs"
+    "prepack": "npm run build"
   },
   "keywords": [
     "i18n",

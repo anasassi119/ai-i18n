@@ -4,7 +4,9 @@
 
 ```bash
 npx ai-i18n init
-npx ai-i18n init --force     # replace existing ai-i18n.config.json
+npx ai-i18n init --force              # replace existing ai-i18n.config.json
+npx ai-i18n init --silent             # minimal console output
+npx ai-i18n init --i18n src/lib/i18n.ts   # explicit i18next init module path
 npx ai-i18n generate         # fill missing/outdated keys in target locale JSON
 npx ai-i18n generate --force # re-translate every key for every target locale
 npx ai-i18n generate --locale de         # only update locale `de` (missing/outdated; repeat `--locale` for several)
@@ -26,10 +28,12 @@ npm exec -- ai-i18n generate --force
 
 Do **not** use `npm ai-i18n` (invalid). Prefer **`npx ai-i18n …`**.
 
-## Scanner rules (strict)
+## Scanner rules
 
-- Only **`t('literalKey', …?)`** is extracted: the callee must be the identifier **`t`**, first argument a **string literal** key. The second argument is **not** inspected by the CLI (use standard i18next options only).
-- Optional translator context for **`generate`** lives in **`{localesDir}/translator-notes.json`**, not in source. See [resource-contract.md](./resource-contract.md).
+- The callee must be the identifier **`t`**, first argument a **string literal** (the second argument is **not** inspected; use standard i18next options only).
+- Keys containing **`:`** in the literal are treated as **fully qualified** logical ids (e.g. **`t('nav:home')`**).
+- **`useTranslation('namespace')`** (string literal) binds **`t('key')`** in the same function body: with **multiple** configured namespace files per locale, logical ids become **`namespace:key`** (with optional **`keyPrefix`** from the hook’s second argument object). With a **single** namespace file that matches the hook, **short keys** are used so one `translation.json` stays the default case.
+- Optional translator context for **`generate`** lives in **`{localesDir}/translator-notes.json`**, keyed by the same **logical** ids the CLI uses (short, dotted, or **`ns:…`**). See [resource-contract.md](./resource-contract.md).
 
 ## Catalog sync (default → targets)
 

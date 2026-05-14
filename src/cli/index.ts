@@ -56,13 +56,46 @@ async function main(): Promise<void> {
   }
 
   if (cmd === "init") {
-    const force = args.includes("--force");
-    await runInit(cwd, { force });
+    const argv = args.slice(1);
+    const force = argv.includes("--force");
+    const silent = argv.includes("--silent");
+    let i18nOverride: string | undefined;
+    for (let i = 0; i < argv.length; i++) {
+      const a = argv[i];
+      if (a === "--force" || a === "--silent") continue;
+      if (a === "--i18n") {
+        const v = argv[++i];
+        if (v === undefined || v.startsWith("-")) {
+          console.error("[ai-i18n] init: expected a path after --i18n.");
+          process.exitCode = 1;
+          return;
+        }
+        i18nOverride = v;
+      } else if (a.startsWith("--i18n=")) {
+        const v = a.slice("--i18n=".length);
+        if (!v || v.startsWith("-")) {
+          console.error("[ai-i18n] init: expected a value in --i18n=<path>.");
+          process.exitCode = 1;
+          return;
+        }
+        i18nOverride = v;
+      } else if (a.startsWith("-")) {
+        console.error(`[ai-i18n] init: unknown option ${a}`);
+        process.exitCode = 1;
+        return;
+      }
+    }
+    try {
+      await runInit(cwd, { force, silent, i18nOverride });
+    } catch (e) {
+      console.error(e instanceof Error ? e.message : e);
+      process.exitCode = 1;
+    }
     return;
   }
 
   console.error(
-    "Usage: ai-i18n init [--force] | ai-i18n generate [--force] [--locale <code> ...] | ai-i18n diff [--add-missing-default]",
+    "Usage: ai-i18n init [--force] [--silent] [--i18n <path>] | ai-i18n generate [--force] [--locale <code> ...] | ai-i18n diff [--add-missing-default]",
   );
   process.exitCode = 1;
 }

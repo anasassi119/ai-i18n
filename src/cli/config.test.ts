@@ -100,4 +100,23 @@ describe("loadConfig", () => {
       await rm(dir, { recursive: true, force: true });
     }
   });
+
+  it("localesAutoDiscover replaces locales from disk (flat layout)", async () => {
+    const dir = await mkdtemp(path.join(tmpdir(), "ai-i18n-cfg-autodisc-"));
+    try {
+      await mkdir(path.join(dir, "locales"), { recursive: true });
+      await writeFile(path.join(dir, "locales", "en.json"), "{}\n", "utf8");
+      await writeFile(path.join(dir, "locales", "de.json"), "{}\n", "utf8");
+      await writeFile(path.join(dir, "locales", "fr.json"), "{}\n", "utf8");
+      await writeProjectWithI18n(dir, {
+        i18nBody: flatI18nStub,
+        configExtra: { locales: ["en", "xx"], localesAutoDiscover: true },
+      });
+      const { config } = await loadConfig(dir);
+      expect(config.defaultLocale).toBe("en");
+      expect(config.locales).toEqual(["en", "de", "fr"]);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
 });

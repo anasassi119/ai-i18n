@@ -2,7 +2,7 @@
 
 
 
-This document is the **single contract** for how **ai-i18n** expects locale files to look, how that maps to **i18next**, and what is **out of scope** for the current scanner (literal `t('key')` only).
+This document is the **single contract** for how **ai-i18n** expects locale files to look, how that maps to **i18next**, and how the **scanner** maps source calls to catalog keys.
 
 
 
@@ -20,15 +20,21 @@ This document is the **single contract** for how **ai-i18n** expects locale file
 
 | **`flat`** (default when inferred / omitted) | **`{localesDir}/{locale}.json`** | Original layout. |
 
-| **`i18next-namespace`** | **`{localesDir}/{locale}/{namespace}.json`** | Matches a common i18next folder layout (e.g. `locales/en/translation.json`). Same **flat** `Record<string, string>` inside each JSON file. |
+| **`i18next-namespace`** | **`{localesDir}/{locale}/{namespace}.json`** | One JSON file per `(locale, namespace)` segment. Use **`namespaces`** (array) for multiple files per locale (e.g. `nav.json` + `common.json`). Logical keys merge as **`namespace:inner.path`** when more than one namespace is configured. |
 
+Set optional **`namespace`** when using **`i18next-namespace`** with a **single** file per locale (default **`translation`**). Use **`namespaces`** instead when you have several JSON files per locale; **`namespaces`** requires **`resourceFormat": "i18next-namespace"`** and takes precedence over **`namespace`**.
 
+Optional **`localeShape`**: **`flat`** (default) — only top-level string keys in each JSON file. **`nested`** — plain object trees whose **leaves** are strings; logical keys use **dot paths** (e.g. `nav.home`) inside each namespace file. The deprecated config key **`catalogShape`** maps to **`localeShape`** with a one-time console warning.
 
-Set optional **`namespace`** when using `i18next-namespace` (default **`translation`**, i18next’s default namespace). `namespace` must not appear when `resourceFormat` is `flat` or omitted.
+Optional **`localesAutoDiscover`: true`** — rebuild the **`locales`** list from disk under **`localesDir`** (`*.json` basenames for `flat`, subdirectory names for **`i18next-namespace`**), keeping **`defaultLocale`** first. When **`locales`** is also set in JSON, **`localesAutoDiscover`** still wins when the flag is **`true`** and at least one locale is found on disk.
 
+**Scanner:** the callee must be the identifier **`t`**, first argument a **string literal**. The CLI resolves **logical keys** for **`diff`** (and **`--add-missing-default`**) as follows:
 
+- Literal keys containing **`:`** are kept as-is (e.g. **`t('nav:home')`** → `nav:home`).
+- With **`useTranslation('ns')`** (or default **`translation`** when omitted), **`t('key')`** becomes **`ns:key`** when **`namespaces`** has **more than one** entry; when there is only one on-disk namespace and it matches the hook namespace, **short keys** (`key`) are used so single-file catalogs stay unchanged.
+- Optional second argument object: **`keyPrefix`** (string literal) is prepended to the key segment before namespace rules apply.
 
-**Scanner (Phase 2 v1):** unchanged — only **string literal** keys in `t('…')` are compared to the **default locale’s** catalog file for that layout (single namespace file in `i18next-namespace` mode). Multiple namespaces, `ns:key` syntax, and scanning across several JSON files per locale are **future work** (see [ROADMAP.md](../ROADMAP.md)).
+See [cli-reference.md](./cli-reference.md) for a short summary.
 
 
 
@@ -82,7 +88,7 @@ localesDir/
 
 | **Files** | Per `resourceFormat` table above, plus optional **`{localesDir}/translator-notes.json`**. |
 
-| **Shape** | Each catalog JSON file is a **flat** object: **string keys → string values** only. Values are message templates (e.g. with `{{name}}` for i18next interpolation). Non-string entries in the default catalog are ignored for generation key-set purposes. |
+| **Shape** | With **`localeShape": "flat"`** (default), each file is a flat map of string keys → string values. With **`localeShape": "nested"`**, each file is a JSON object whose **string leaves** define messages; keys are **dot paths** to each leaf. **Arrays** and non-object values under a key are **ignored** for extraction (strings inside array entries are not lifted to separate keys). |
 
 
 
@@ -94,43 +100,16 @@ localesDir/
 
 
 
-## What `generate` does *not* produce today
+## What `generate` does *not* produce
 
 
 
-**Important:** the CLI does **not** emit i18next-specific plural structures (e.g. `key_one` / `key_other` object branches), ICU message format, or nested key trees in JSON. It outputs **plain strings per key**.
+**Plural / ICU bundles:** the CLI does **not** emit i18next plural object branches (e.g. `key_one` / `key_other`), ICU message format trees, or non-string JSON leaves. It reads and writes **string** messages only (flat keys or nested **string** leaves). Pluralization and ICU remain **i18next** concerns at runtime.
 
-
-
-Pluralization, [i18next pluralization rules](https://www.i18next.com/translation-function/plurals), ICU plugins, and structured messages are **configured and rendered by i18next** in your app. If you need those shapes in JSON, you either:
-
-
-
-- Author them by hand in locale files (and teach the CLI to preserve them in a future **resourceFormat** — see roadmap), or
-
-- Keep using flat keys and encode plural intent in separate keys (`items_one`, `items_other`) yourself.
-
-
+You can still encode plural intent with **separate flat keys** (`items_one`, `items_other`) or maintain advanced JSON by hand outside what **`generate`** overwrites.
 
 ---
 
-
-
-## Future formats (not implemented)
-
-
-
-Compatibility targets for later roadmap items:
-
-
-
-- Multiple namespace files per locale scanned by the CLI.
-
-- Nested JSON matching i18next deep resources.
-
-
-
----
 
 
 
@@ -142,11 +121,11 @@ Compatibility targets for later roadmap items:
 
 |------|--------|
 
-| **Purpose** | Optional **key → string** map at **`{localesDir}/translator-notes.json`** gives OpenAI / Anthropic extra UI or product context when translating. Same keys as message ids (`t('welcome')` ↔ `"welcome"`). |
+| **Purpose** | Optional **key → string** map at **`{localesDir}/translator-notes.json`** gives OpenAI / Anthropic extra UI or product context when translating. Keys match **logical** message ids (same strings **`diff`** / **`generate`** use: short keys, dot paths for **`nested`**, or **`namespace:inner`** when multiple namespace files are configured). |
 
 | **Runtime** | **Not** read by i18next. Your app only loads locale catalogs; keep using standard **`t('key', { … })`** without any CLI-specific options. |
 
-| **Lifecycle** | **`init`**, **`generate`**, and postinstall bootstrap ensure the file exists as `{}` when missing. You edit it by hand or generate tooling. |
+| **Lifecycle** | **`init`** may create `{}` when the default catalog and sidecar are missing; **`generate`** and other commands expect the file when you use translator notes. You edit it by hand or generate tooling. |
 
 | **Shape** | Top-level JSON object: **string keys → string values** only. Invalid types cause **`generate`** to fail with a clear error. |
 
@@ -184,7 +163,7 @@ i18next concepts: [namespaces](https://www.i18next.com/principles/namespaces), [
 
 
 
-- [configuration.md](./configuration.md) — `localesDir`, `i18n`, `translator-notes.json`, optional overrides, `resourceFormat`
+- [configuration.md](./configuration.md) — `localesDir`, `i18n`, `translator-notes.json`, `resourceFormat`, `namespace`, `namespaces`, `localeShape`, `localesAutoDiscover`
 
 - [cli-reference.md](./cli-reference.md) — scanner, `generate`, `diff`
 

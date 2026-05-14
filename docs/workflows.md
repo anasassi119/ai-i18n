@@ -30,7 +30,7 @@ Patterns for **i18next** + **ai-i18n** in development and CI. Paths follow [reso
 }
 ```
 
-Use `AI_I18N_SKIP_INIT=1` in CI if you do not want postinstall scaffolding.
+Commit **`ai-i18n.config.json`** (run **`npx ai-i18n init`** locally first) so CI has a valid layout; `npm install ai-i18n` alone does not create that file.
 
 **Note:** Run **`npx ai-i18n diff`** only in CI — not **`diff --add-missing-default`**, which edits the default catalog unless you explicitly want pipelines to commit those changes.
 

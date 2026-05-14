@@ -1,0 +1,250 @@
+{
+    "translation": {
+      "nav": {
+        "home": "Home",
+        "about": "About",
+        "experience": "Experience",
+        "projects": "Projects",
+        "blog": "Blog",
+        "contact": "Contact"
+      },
+      "hero": {
+        "title": "Anas Assi",
+        "subtitle": "Software Engineer & AI Specialist",
+        "scroll": "Scroll"
+      },
+      "occupations": {
+        "title": "Vision",
+        "subtitle": "What I Do",
+        "developer": {
+          "title": "Full Stack Developer",
+          "description": "Building digital experiences with precision and purpose"
+        },
+        "designer": {
+          "title": "AI Engineer",
+          "description": "Using AI to build intelligent systems of the future"
+        },
+        "creator": {
+          "title": "Data Analyst",
+          "description": "Turning data to insights to drive informed decisions and strategies"
+        }
+      },
+      "experience": {
+        "title": "See for yourself",
+        "subtitle": "Experience",
+        "items": [
+          {
+            "id": "1",
+            "company": "Medido Health",
+            "role": "Software Engineer & AI Specialist",
+            "period": "May 2025 - Present",
+            "location": "San Juan, Puerto Rico · On-site",
+            "description": [
+              "Enhanced and ensured HIPAA compliance by refactoring core backend services, adding robust authentication techniques, maintaining audit-controls and enforcing strict data handling.",
+              "Developed robust backend integrations with external service providers, increasing system reliability and reducing human errors in workflow execution.",
+              "Developed an API-Platform as an internal tool to help streamline onboarding, development, and debugging by employing OpenAPI and SwaggerUI for aggregation, also integrated with CI/CD pipeline to ensure annotation of APIs match functionality at all times.",
+              "Contributed to several AI initiatives aimed at automating clinical workflows, including prescription digitization that cut manual entry time by 56%.",
+              "Developed KITT, an Integration Toolkit to streamline database migration from external systems, automating data manipulation and dependency handling and reducing client onboarding time by over 90%.",
+              "Designed and implemented automation routines for recurring operational tasks, including automated reporting, data validation checks, and workflow triggers."
+            ]
+          },
+          {
+            "id": "2",
+            "company": "Cinewav",
+            "role": "AI Engineer",
+            "period": "Dec 2024 - May 2025",
+            "location": "Singapore, Singapore · Remote",
+            "description": [
+              "Created multi-agent systems to automate marketing, lead generation, and email responses, integrating AI through models hosted on bare-metal servers and APIs using different technologies like Node.js and FastAPI, reducing employee preparation time by 43% and boosting lead conversion rate by 23%.",
+              "Developed a Machine Learning model using image segmentation for a projection mapping application, reducing the cost of projection mapping projects, and the project preparation time, by about 50%.",
+              "Collaborated with cross-functional teams by documenting workflow requirements, coordinating between technical and business stakeholders, and ensuring smooth delivery of integration-related features.",
+              "Developed Power BI dashboards for real-time client behavior analysis, including churn indicators, engagement trends, and A/B test performance; transformed raw operational data into actionable insights that informed marketing strategy and optimized user retention efforts."
+            ]
+          },
+          {
+            "id": "3",
+            "company": "Aplus Technologies",
+            "role": "Full Stack Engineer & Project Lead",
+            "period": "Jun 2023 - Dec 2024",
+            "location": "Ramallah, West Bank · On-site",
+            "description": [
+              "Worked on the SimplyBook team as a team lead, employed agile methodologies, and was able to launch the first SimplyBook version in about 3 months.",
+              "Designed a proprietary e-Commerce platform with a comprehensive management dashboard, support for selling various digital products, a CRM dashboard, and user management, driving increased site traffic and sales.",
+              "Leveraged eCommerce expertise to optimize marketing tools, enhancing client engagement and market reach.",
+              "Deployed and oversaw the implementation of a sales system with advanced features for accounting, employee management, and product management, adopted by multiple local SMBs.",
+              "Managed end-to-end project lifecycles and ensured timely delivery."
+            ]
+          },
+          {
+            "id": "4",
+            "company": "iTech Solutions",
+            "role": "Software Engineering Intern",
+            "period": "Jun 2021 - Oct 2021",
+            "location": "Ramallah, West Bank · On-site",
+            "description": [
+              "Worked within a team of 5 to develop a Computer Vision Poll System for the Palestinian Engineers Association, achieving 100% accuracy across 5 trials, and ensuring robustness in Real-World environments."
+            ]
+          }
+        ]
+      },
+      "projects": {
+        "title": "Work",
+        "subtitle": "Selected Projects",
+        "items": [
+          {
+            "id": "1",
+            "title": "Neura AI",
+            "description": "An All-In-One AI platform that provides a wide range of AI tools and services to help businesses and individuals automate their workflows and improve productivity.",
+            "technologies": ["React", "TypeScript", "Firebase", "TailwindCSS"],
+            "timePeriod": "2026",
+            "image": "/neura.png",
+            "liveUrl": "https://neura.so/",
+            "githubUrl": ""
+          },
+          {
+            "id": "2",
+            "title": "GymERP",
+            "description": "A comprehensive gym management system that streamlines operations, enhances member experience, and boosts business efficiency.",
+            "technologies": ["React", "TypeScript", "Firebase", "TailwindCSS"],
+            "timePeriod": "2026",
+            "image": "/gymerp.png",
+            "liveUrl": "https://dev.gym-erp.com/",
+            "githubUrl": ""
+          },
+          {
+            "id": "3",
+            "title": "Qunber Dent",
+            "description": "A comprehensive landing page for Qunber dental supplies featuring an elegant design, admin dashboard, CMS connectors, SEO optimization, and complete web solution for dental businesses.",
+            "technologies": ["React", "Vite", "JavaScript", "CSS", "Admin Dashboard", "CMS"],
+            "timePeriod": "2025",
+            "image": "/qunber-dent.png",
+            "liveUrl": "https://qunber-dent.com",
+            "githubUrl": ""
+          },
+          {
+            "id": "4",
+            "title": "MarkdownRenderer",
+            "description": "A free, lightweight online markdown editor built with React and Vite that provides a seamless editing experience for markdown enthusiasts and developers.",
+            "technologies": ["React", "Vite", "JavaScript", "CSS", "Markdown"],
+            "timePeriod": "2025",
+            "image": "/markdownrenderer.png",
+            "liveUrl": "https://markdownrenderer.com/",
+            "githubUrl": ""
+          },
+          {
+            "id": "5",
+            "title": "CAST Agency Website",
+            "description": "A responsive, dynamic website for CAST Marketing Agency built to the latest web standards, highlighting their services while maintaining brand identity.",
+            "technologies": ["React", "JavaScript", "HTML", "CSS"],
+            "timePeriod": "2025",
+            "image": "/cast.webp",
+            "liveUrl": "https://thecast.ps/",
+            "githubUrl": ""
+          },
+          {
+            "id": "6",
+            "title": "Beauty Inn Hotel",
+            "description": "An elegant hotel landing page for Beauty Inn in Ramallah, featuring modern design, room showcasing, booking information, and comprehensive hotel services.",
+            "technologies": ["React", "Vite", "JavaScript", "CSS"],
+            "timePeriod": "2025",
+            "image": "/beautyinn.png",
+            "liveUrl": "https://heartfelt-quokka-a718f9.netlify.app/",
+            "githubUrl": ""
+          },
+          {
+            "id": "7",
+            "title": "SimplyBook 2.0",
+            "description": "A cloud-based ERP based on Odoo platform allowing clients to develop and customize modules based on their business needs.",
+            "technologies": ["Python", "JavaScript", "PostgreSQL"],
+            "timePeriod": "2024",
+            "image": "/cloud_pos.webp",
+            "liveUrl": "https://aplus-technologies.com/SbSignIn2",
+            "githubUrl": ""
+          },
+          {
+            "id": "8",
+            "title": "SBS Salon Management System",
+            "description": "A customized version of SimplyBook designed specifically for SBS Salon with proprietary features tailored to their needs.",
+            "technologies": ["React", "JavaScript", "Firebase"],
+            "timePeriod": "2024",
+            "image": "",
+            "liveUrl": "https://system.sbs.salon/SignIn",
+            "githubUrl": ""
+          },
+          {
+            "id": "9",
+            "title": "Abu Obeid Sales System",
+            "description": "A sales dashboard for employees providing ticketing, invoicing, and product inventory tracking features for in-store sales.",
+            "technologies": ["React", "JavaScript", "Firebase", "Node.js"],
+            "timePeriod": "2023 - 2024",
+            "image": "",
+            "liveUrl": "https://dashboard.abuobeid.com/",
+            "githubUrl": ""
+          },
+          {
+            "id": "10",
+            "title": "Deep Learning KYC System",
+            "description": "An AI-operated web-based system using Hough Transform and DeepFace to detect faces on IDs and classify user applications for financial service providers.",
+            "technologies": ["Python", "React", "JavaScript", "Node.js"],
+            "timePeriod": "2023",
+            "image": "",
+            "liveUrl": "",
+            "githubUrl": "https://github.com/anasassi119/kyc_system"
+          },
+          {
+            "id": "11",
+            "title": "SimplyBook",
+            "description": "A smart, lightweight business management solution with booking management, SMS capabilities, and comprehensive service features.",
+            "technologies": ["React", "JavaScript", "Firebase", "HTML", "CSS"],
+            "timePeriod": "2023",
+            "image": "",
+            "liveUrl": "https://sb.aplus-technologies.com/SignIn",
+            "githubUrl": ""
+          },
+          {
+            "id": "12",
+            "title": "Aplus Technologies Website",
+            "description": "A comprehensive business website with online store, allowing users to perform purchases, contact the company, and explore services.",
+            "technologies": ["React", "JavaScript", "HTML", "CSS", "Firebase"],
+            "timePeriod": "2023",
+            "image": "/aplus2.webp",
+            "liveUrl": "https://aplus-technologies.com",
+            "githubUrl": ""
+          },
+          {
+            "id": "13",
+            "title": "Abu Obeid Website",
+            "description": "A lightweight landing page providing contact info, company location, contact form, and employee sign-in functionality.",
+            "technologies": ["React", "JavaScript", "HTML", "CSS"],
+            "timePeriod": "2024",
+            "image": "/abuobeid.webp",
+            "liveUrl": "https://abuobeid.com/",
+            "githubUrl": ""
+          }
+        ]
+      },
+      "skills": {
+        "title": "Expertise",
+        "subtitle": "Skills & Tools"
+      },
+      "contact": {
+        "title": "Let's Innovate",
+        "subtitle": "Ready to start a project?",
+        "description": "Available for collaboration now",
+        "cta": "Book your 30 minutes",
+        "calendly": "https://calendly.com/anasassi/30min",
+        "email": "anasassi119@gmail.com",
+        "phone": "+970595959159",
+        "social": {
+          "github": "https://github.com/anasassi119",
+          "linkedin": "https://linkedin.com/in/anasassi",
+          "whatsapp": "https://wa.me/970595959159",
+          "email": "mailto:anasassi119@gmail.com"
+        }
+      },
+      "footer": {
+        "rights": "Anas Assi. All rights reserved"
+      }
+    }
+  }
+  

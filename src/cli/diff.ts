@@ -1,10 +1,11 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
+import type { AitConfig } from "./config.js";
 import { loadConfig } from "./config.js";
-import { localeCatalogPath } from "./catalogLayout.js";
-import { scanSources } from "./scan.js";
-
-type Catalog = Record<string, string>;
+import { loadLocaleCatalogBundle } from "./catalogBundle.js";
+import { localeJsonFilesForLocale } from "./catalogLayout.js";
+import { mergeMissingKeysIntoParsed, splitNamespacedLogicalKey } from "./catalogTree.js";
+import { scanContextFromConfig, scanSources } from "./scan.js";
 
 export type DiffResult = { ok: boolean };
 
@@ -22,10 +23,6 @@ async function readJson<T>(file: string): Promise<T | null> {
   }
 }
 
-function computeDefaultStringKeys(defaultCatalog: Catalog): Set<string> {
-  return new Set(Object.keys(defaultCatalog).filter((k) => typeof defaultCatalog[k] === "string"));
-}
-
 function computeCodeVsDefaultLists(
   keysInCode: Set<string>,
   keysInDefault: Set<string>,
@@ -41,26 +38,46 @@ function computeCodeVsDefaultLists(
   return { inCodeNotDefault, inDefaultNotCode };
 }
 
-/**
- * Preserves existing key order from the JSON file, then appends new keys (lexicographic) with empty values.
- */
-async function appendMissingKeysToDefaultCatalog(defaultPath: string, missingKeys: string[]): Promise<void> {
-  const raw = (await readJson<Record<string, unknown>>(defaultPath)) ?? {};
-  const out: Catalog = {};
-  for (const k of Object.keys(raw)) {
-    const v = raw[k];
-    if (typeof v === "string") {
-      out[k] = v;
+async function appendMissingKeysToDefaultCatalog(
+  cwd: string,
+  config: AitConfig,
+  missingKeys: string[],
+): Promise<void> {
+  const shape = config.localeShape ?? "flat";
+  const defaultBundle = await loadLocaleCatalogBundle(cwd, config, config.defaultLocale);
+
+  if (!defaultBundle.multiNamespace) {
+    const filePath = localeJsonFilesForLocale(cwd, config, config.defaultLocale)[0]!.path;
+    const raw = (await readJson<unknown>(filePath)) ?? {};
+    const merged = mergeMissingKeysIntoParsed(raw, shape, missingKeys);
+    await mkdir(path.dirname(filePath), { recursive: true });
+    await writeFile(filePath, JSON.stringify(merged, null, 2) + "\n", "utf8");
+    return;
+  }
+
+  const byNs: Record<string, string[]> = {};
+  for (const ns of defaultBundle.namespaces) {
+    byNs[ns] = [];
+  }
+  for (const mk of missingKeys) {
+    const sp = splitNamespacedLogicalKey(mk);
+    if (sp && byNs[sp.namespace] !== undefined) {
+      byNs[sp.namespace]!.push(sp.innerPath);
+    } else if (!mk.includes(":")) {
+      const first = defaultBundle.namespaces[0];
+      if (first !== undefined) byNs[first]!.push(mk);
     }
   }
-  const sortedNew = [...missingKeys].sort((a, b) => a.localeCompare(b));
-  for (const k of sortedNew) {
-    if (out[k] === undefined) {
-      out[k] = "";
-    }
+
+  for (const ns of defaultBundle.namespaces) {
+    const innerMissing = byNs[ns] ?? [];
+    if (innerMissing.length === 0) continue;
+    const filePath = localeJsonFilesForLocale(cwd, config, config.defaultLocale).find((x) => x.namespace === ns)!.path;
+    const raw = (await readJson<unknown>(filePath)) ?? {};
+    const merged = mergeMissingKeysIntoParsed(raw, shape, innerMissing);
+    await mkdir(path.dirname(filePath), { recursive: true });
+    await writeFile(filePath, JSON.stringify(merged, null, 2) + "\n", "utf8");
   }
-  await mkdir(path.dirname(defaultPath), { recursive: true });
-  await writeFile(defaultPath, JSON.stringify(out, null, 2) + "\n", "utf8");
 }
 
 /**
@@ -69,20 +86,22 @@ async function appendMissingKeysToDefaultCatalog(defaultPath: string, missingKey
  */
 export async function runDiff(cwd: string, options: RunDiffOptions = {}): Promise<DiffResult> {
   const { config } = await loadConfig(cwd);
-  const scan = await scanSources(cwd, config.sourceGlobs);
-  const defaultPath = localeCatalogPath(cwd, config, config.defaultLocale);
-  let defaultCatalog = ((await readJson<Catalog>(defaultPath)) ?? {}) as Catalog;
+  const scanCtx = scanContextFromConfig(config);
+  const scan = await scanSources(cwd, config.sourceGlobs, scanCtx);
+  const defaultBundle = await loadLocaleCatalogBundle(cwd, config, config.defaultLocale);
+  const defaultPath = localeJsonFilesForLocale(cwd, config, config.defaultLocale)[0]!.path;
 
-  let keysInDefault = computeDefaultStringKeys(defaultCatalog);
+  const keysInDefault = new Set(Object.keys(defaultBundle.mergedFlat));
   let { inCodeNotDefault, inDefaultNotCode } = computeCodeVsDefaultLists(scan.keysInCode, keysInDefault);
 
   if (options.addMissingToDefault && inCodeNotDefault.length > 0) {
-    await appendMissingKeysToDefaultCatalog(defaultPath, inCodeNotDefault);
+    await appendMissingKeysToDefaultCatalog(cwd, config, inCodeNotDefault);
     console.log(
-      `[ai-i18n] Wrote ${inCodeNotDefault.length} missing key(s) to default catalog (${path.relative(cwd, defaultPath)}) with empty strings — fill source text, then run generate.`,
+      `[ai-i18n] Wrote ${inCodeNotDefault.length} missing key(s) to default catalog (${path.relative(cwd, defaultPath)} and/or sibling namespace files) with empty strings — fill source text, then run generate.`,
     );
-    defaultCatalog = ((await readJson<Catalog>(defaultPath)) ?? {}) as Catalog;
-    keysInDefault = computeDefaultStringKeys(defaultCatalog);
+    const reloaded = await loadLocaleCatalogBundle(cwd, config, config.defaultLocale);
+    keysInDefault.clear();
+    for (const k of Object.keys(reloaded.mergedFlat)) keysInDefault.add(k);
     ({ inCodeNotDefault, inDefaultNotCode } = computeCodeVsDefaultLists(scan.keysInCode, keysInDefault));
   }
 
@@ -107,9 +126,11 @@ export async function runDiff(cwd: string, options: RunDiffOptions = {}): Promis
 
   for (const locale of config.locales) {
     if (locale === config.defaultLocale) continue;
-    const targetPath = localeCatalogPath(cwd, config, locale);
-    const targetRel = path.relative(cwd, targetPath);
-    const target = (await readJson<Catalog>(targetPath)) ?? {};
+    const targetRel = localeJsonFilesForLocale(cwd, config, locale)
+      .map((x) => path.relative(cwd, x.path))
+      .join(", ");
+    const targetBundle = await loadLocaleCatalogBundle(cwd, config, locale, { allowMissing: true });
+    const target = targetBundle.mergedFlat;
     const missing: string[] = [];
     for (const k of keysInDefault) {
       if (target[k] === undefined || target[k] === "") missing.push(k);

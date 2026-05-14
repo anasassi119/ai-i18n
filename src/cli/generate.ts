@@ -2,7 +2,9 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import type { AitConfig } from "./config.js";
 import { loadConfig } from "./config.js";
-import { localeCatalogPath } from "./catalogLayout.js";
+import type { LocaleCatalogBundle } from "./catalogBundle.js";
+import { loadLocaleCatalogBundle, writeLocaleCatalogBundle } from "./catalogBundle.js";
+import { localeJsonFilesForLocale } from "./catalogLayout.js";
 import { hashSource } from "./hash.js";
 import { ensureTranslatorNotesFile, loadTranslatorNotes } from "./translatorNotes.js";
 import { resolveTranslator } from "./translate/factory.js";
@@ -20,19 +22,6 @@ async function readJson<T>(file: string): Promise<T | null> {
   }
 }
 
-async function readCatalog(file: string): Promise<Catalog> {
-  const j = await readJson<Catalog>(file);
-  if (!j || typeof j !== "object") {
-    throw new Error(`Missing or invalid catalog: ${file}`);
-  }
-  return j;
-}
-
-async function writeCatalog(file: string, catalog: Catalog): Promise<void> {
-  await fs.mkdir(path.dirname(file), { recursive: true });
-  await fs.writeFile(file, JSON.stringify(catalog, null, 2) + "\n", "utf8");
-}
-
 async function readCache(cacheDir: string): Promise<CacheFile> {
   const p = path.join(cacheDir, ".ai-i18n-cache.json");
   const j = await readJson<CacheFile>(p);
@@ -43,11 +32,6 @@ async function writeCache(cacheDir: string, cache: CacheFile): Promise<void> {
   await fs.mkdir(cacheDir, { recursive: true });
   const p = path.join(cacheDir, ".ai-i18n-cache.json");
   await fs.writeFile(p, JSON.stringify(cache, null, 2) + "\n", "utf8");
-}
-
-/** Keys in default catalog that hold translatable strings. */
-function defaultStringKeys(defaultCatalog: Catalog): string[] {
-  return Object.keys(defaultCatalog).filter((k) => typeof defaultCatalog[k] === "string");
 }
 
 export type RunGenerateOptions = {
@@ -76,6 +60,42 @@ function validateAndNormalizeOnlyLocales(requested: string[], config: AitConfig)
   return targets;
 }
 
+async function throwHelpfulMissingDefaultCatalog(
+  cwd: string,
+  config: AitConfig,
+  err: unknown,
+): Promise<never> {
+  const localesBase = path.resolve(cwd, config.localesDir);
+  const flatDefaultPath = path.join(localesBase, `${config.defaultLocale}.json`);
+  const paths = localeJsonFilesForLocale(cwd, config, config.defaultLocale);
+  const primary = paths[0]!.path;
+
+  if (primary !== flatDefaultPath) {
+    const flatCat = await readJson<Catalog>(flatDefaultPath);
+    if (flatCat && typeof flatCat === "object") {
+      throw new Error(
+        `Missing or invalid catalog: ${primary}\n\n` +
+          `Found a flat default catalog instead: ${flatDefaultPath}\n` +
+          `The CLI inferred i18next-namespace paths from your "i18n" file. If your locale files are one JSON per language (${config.defaultLocale}.json), add to ai-i18n.config.json:\n` +
+          `  "resourceFormat": "flat"\n`,
+      );
+    }
+  } else {
+    const ns = config.namespace && config.namespace.length > 0 ? config.namespace : "translation";
+    const nsDefaultPath = path.join(localesBase, config.defaultLocale, `${ns}.json`);
+    const nsCat = await readJson<Catalog>(nsDefaultPath);
+    if (nsCat && typeof nsCat === "object") {
+      throw new Error(
+        `Missing or invalid catalog: ${primary}\n\n` +
+          `Found a namespace-layout catalog instead: ${nsDefaultPath}\n` +
+          `Add to ai-i18n.config.json:\n` +
+          `  "resourceFormat": "i18next-namespace"\n`,
+      );
+    }
+  }
+  throw err instanceof Error ? err : new Error(String(err));
+}
+
 export async function runGenerate(cwd: string, options: RunGenerateOptions = {}): Promise<void> {
   const { config } = await loadConfig(cwd);
   await runGenerateWithConfig(cwd, config, options.force ?? false, { onlyLocales: options.onlyLocales });
@@ -100,45 +120,25 @@ export async function runGenerateWithConfig(
   await ensureTranslatorNotesFile(cwd, config.localesDir);
   const translatorNotes = await loadTranslatorNotes(cwd, config.localesDir);
 
-  const defaultPath = localeCatalogPath(cwd, config, config.defaultLocale);
-  const localesBase = path.resolve(cwd, config.localesDir);
-  const flatDefaultPath = path.join(localesBase, `${config.defaultLocale}.json`);
-
-  let defaultCatalog: Catalog;
-  try {
-    defaultCatalog = await readCatalog(defaultPath);
-  } catch (err) {
-    if (defaultPath !== flatDefaultPath) {
-      const flatCat = await readJson<Catalog>(flatDefaultPath);
-      if (flatCat && typeof flatCat === "object") {
-        throw new Error(
-          `Missing or invalid catalog: ${defaultPath}\n\n` +
-            `Found a flat default catalog instead: ${flatDefaultPath}\n` +
-            `The CLI inferred i18next-namespace paths from your "i18n" file. If your locale files are one JSON per language (${config.defaultLocale}.json), add to ai-i18n.config.json:\n` +
-            `  "resourceFormat": "flat"\n`,
-        );
-      }
-    } else {
-      const ns = config.namespace && config.namespace.length > 0 ? config.namespace : "translation";
-      const nsDefaultPath = path.join(localesBase, config.defaultLocale, `${ns}.json`);
-      const nsCat = await readJson<Catalog>(nsDefaultPath);
-      if (nsCat && typeof nsCat === "object") {
-        throw new Error(
-          `Missing or invalid catalog: ${defaultPath}\n\n` +
-            `Found a namespace-layout catalog instead: ${nsDefaultPath}\n` +
-            `Add to ai-i18n.config.json:\n` +
-            `  "resourceFormat": "i18next-namespace"\n`,
-        );
-      }
+  const defaultBundle = await (async (): Promise<LocaleCatalogBundle> => {
+    try {
+      return await loadLocaleCatalogBundle(cwd, config, config.defaultLocale);
+    } catch (err) {
+      return await throwHelpfulMissingDefaultCatalog(cwd, config, err);
     }
-    throw err;
+  })();
+  const defaultCatalog = defaultBundle.mergedFlat;
+  const defaultKeys = [...defaultBundle.orderedLogicalKeys];
+  const defaultKeySet = new Set(defaultKeys);
+  for (const k of Object.keys(defaultCatalog)) {
+    if (!defaultKeySet.has(k)) {
+      defaultKeys.push(k);
+      defaultKeySet.add(k);
+    }
   }
 
   const cacheDir = path.resolve(cwd, config.cacheDir);
   const cache = await readCache(cacheDir);
-
-  const defaultKeys = defaultStringKeys(defaultCatalog);
-  const defaultKeySet = new Set(defaultKeys);
 
   const only = onlyLocales;
   const shouldProcessLocale = (locale: string): boolean => {
@@ -150,8 +150,21 @@ export async function runGenerateWithConfig(
   for (const locale of config.locales) {
     if (!shouldProcessLocale(locale)) continue;
 
-    const targetPath = localeCatalogPath(cwd, config, locale);
-    const existing = (await readJson<Catalog>(targetPath)) ?? {};
+    let existingBundle;
+    try {
+      existingBundle = await loadLocaleCatalogBundle(cwd, config, locale, { allowMissing: true });
+    } catch {
+      existingBundle = {
+        localeShape: defaultBundle.localeShape,
+        mergedFlat: {} as Record<string, string>,
+        perNsParsed: {},
+        orderedLogicalKeys: [],
+        orderedInnerKeysPerNs: {},
+        multiNamespace: defaultBundle.multiNamespace,
+        namespaces: defaultBundle.namespaces,
+      };
+    }
+    const existing = existingBundle.mergedFlat;
     const localeCache = { ...(cache[locale] ?? {}) };
 
     for (const k of Object.keys(localeCache)) {
@@ -162,7 +175,8 @@ export async function runGenerateWithConfig(
 
     const work: { key: string; source: string; translatorNote?: string }[] = [];
     for (const key of defaultKeys) {
-      const source = defaultCatalog[key] as string;
+      const source = defaultCatalog[key];
+      if (source === undefined) continue;
       const h = hashSource(source);
       const needs =
         force ||
@@ -198,7 +212,10 @@ export async function runGenerateWithConfig(
         { model: config.model },
       );
     } else {
-      console.log(`[ai-i18n] ${locale}: pruning ${orphans.length} stale key(s) (no API call)…`);
+      const rel = localeJsonFilesForLocale(cwd, config, locale)
+        .map((x) => path.relative(cwd, x.path))
+        .join(", ");
+      console.log(`[ai-i18n] ${locale}: pruning ${orphans.length} stale key(s) in ${rel} (no API call)…`);
     }
 
     const byKey = new Map(translated.map((x) => [x.key, x.text]));
@@ -206,7 +223,8 @@ export async function runGenerateWithConfig(
 
     const merged: Catalog = {};
     for (const key of defaultKeys) {
-      const source = defaultCatalog[key] as string;
+      const source = defaultCatalog[key];
+      if (source === undefined) continue;
       if (workSet.has(key)) {
         const text = byKey.get(key);
         if (text === undefined || text === "") {
@@ -217,8 +235,11 @@ export async function runGenerateWithConfig(
       } else {
         const prev = existing[key];
         if (prev === undefined || prev === "") {
+          const rel = localeJsonFilesForLocale(cwd, config, locale)
+            .map((x) => path.relative(cwd, x.path))
+            .join(", ");
           throw new Error(
-            `[ai-i18n] Missing translation for "${key}" in ${path.relative(cwd, targetPath)} — run generate without skipping this key (check default catalog).`,
+            `[ai-i18n] Missing translation for "${key}" in ${rel} — run generate without skipping this key (check default catalog).`,
           );
         }
         merged[key] = prev;
@@ -226,9 +247,12 @@ export async function runGenerateWithConfig(
       }
     }
 
-    await writeCatalog(targetPath, merged);
+    await writeLocaleCatalogBundle(cwd, config, locale, merged, defaultBundle);
     cache[locale] = localeCache;
     await writeCache(cacheDir, cache);
-    console.log(`[ai-i18n] ${locale}: wrote ${targetPath}`);
+    const rel = localeJsonFilesForLocale(cwd, config, locale)
+      .map((x) => path.relative(cwd, x.path))
+      .join(", ");
+    console.log(`[ai-i18n] ${locale}: wrote ${rel}`);
   }
 }

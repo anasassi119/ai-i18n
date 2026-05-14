@@ -1,11 +1,51 @@
-import { readFile } from "node:fs/promises";
+import { readFile, readdir } from "node:fs/promises";
 import { resolve } from "node:path";
+import type { LocaleShape } from "./catalogTree.js";
 import { extractI18nInitFromFile } from "./i18nInitExtract.js";
 
 export type Provider = "openai" | "anthropic";
 
 /** How locale files are laid out under `localesDir`. Default: `flat`. */
 export type ResourceFormat = "flat" | "i18next-namespace";
+
+const RESERVED_LOCALE_FILES = new Set(["translator-notes"]);
+
+async function discoverLocalesFromDisk(
+  cwd: string,
+  localesDir: string,
+  resourceFormat: ResourceFormat,
+): Promise<string[]> {
+  const base = resolve(cwd, localesDir);
+  let dirents;
+  try {
+    dirents = await readdir(base, { withFileTypes: true });
+  } catch {
+    return [];
+  }
+
+  if (resourceFormat === "flat") {
+    const codes: string[] = [];
+    for (const d of dirents) {
+      if (!d.isFile() || !d.name.endsWith(".json")) continue;
+      const code = d.name.replace(/\.json$/i, "");
+      if (!code || RESERVED_LOCALE_FILES.has(code)) continue;
+      codes.push(code);
+    }
+    return [...new Set(codes)].sort((a, b) => a.localeCompare(b));
+  }
+
+  const codes: string[] = [];
+  for (const d of dirents) {
+    if (d.isDirectory() && !d.name.startsWith(".")) codes.push(d.name);
+  }
+  return [...new Set(codes)].sort((a, b) => a.localeCompare(b));
+}
+
+function mergeDiscoveredLocales(defaultLocale: string, discovered: string[]): string[] {
+  const rest = discovered.filter((l) => l !== defaultLocale);
+  const dedup = [defaultLocale, ...rest.filter((l, i) => rest.indexOf(l) === i)];
+  return dedup;
+}
 
 export interface AitConfig {
   sourceGlobs: string[];
@@ -21,8 +61,17 @@ export interface AitConfig {
   model?: string;
   /** Default `flat`. `i18next-namespace` uses `{localesDir}/{locale}/{namespace}.json`. */
   resourceFormat?: ResourceFormat;
-  /** Used when `resourceFormat` is `i18next-namespace`; default `translation`. */
+  /** Used when `resourceFormat` is `i18next-namespace`; default `translation`. Ignored when `namespaces` is set. */
   namespace?: string;
+  /** Default `flat` (top-level string keys only). `nested` allows nested objects with string leaves. */
+  localeShape?: LocaleShape;
+  /**
+   * Multiple `{localesDir}/{locale}/{name}.json` files per language.
+   * Requires `resourceFormat: "i18next-namespace"`.
+   */
+  namespaces?: string[];
+  /** When true, `locales` is replaced by scanning `localesDir` (flat: `*.json`; namespace: subdirs). */
+  localesAutoDiscover?: boolean;
 }
 
 export async function loadConfig(cwd: string): Promise<{ path: string; config: AitConfig }> {
@@ -129,6 +178,56 @@ export async function loadConfig(cwd: string): Promise<{ path: string; config: A
     );
   }
 
+  const namespacesRaw = o.namespaces;
+  let namespaces: string[] | undefined;
+  if (namespacesRaw !== undefined && namespacesRaw !== null) {
+    if (!Array.isArray(namespacesRaw) || !namespacesRaw.every((x) => typeof x === "string")) {
+      throw new Error('ai-i18n.config.json: "namespaces" must be an array of strings when set');
+    }
+    namespaces = (namespacesRaw as string[])
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0);
+    if (namespaces.length === 0) namespaces = undefined;
+  }
+  if (namespaces !== undefined && resourceFormat !== "i18next-namespace") {
+    throw new Error(
+      'ai-i18n.config.json: "namespaces" requires resourceFormat "i18next-namespace"',
+    );
+  }
+
+  const localeShapeRaw = o.localeShape;
+  const deprecatedCatalogShapeRaw = o.catalogShape;
+  let localeShape: LocaleShape | undefined;
+  if (localeShapeRaw !== undefined && localeShapeRaw !== null) {
+    if (localeShapeRaw === "flat" || localeShapeRaw === "nested") {
+      localeShape = localeShapeRaw;
+    } else {
+      throw new Error('ai-i18n.config.json: localeShape must be "flat" or "nested"');
+    }
+  }
+  if (
+    deprecatedCatalogShapeRaw !== undefined &&
+    deprecatedCatalogShapeRaw !== null &&
+    localeShape === undefined
+  ) {
+    if (deprecatedCatalogShapeRaw === "flat" || deprecatedCatalogShapeRaw === "nested") {
+      console.warn(
+        '[ai-i18n] ai-i18n.config.json: "catalogShape" was renamed to "localeShape". Update your config.',
+      );
+      localeShape = deprecatedCatalogShapeRaw;
+    } else {
+      throw new Error('ai-i18n.config.json: catalogShape must be "flat" or "nested"');
+    }
+  }
+
+  const localesAutoDiscover = o.localesAutoDiscover === true;
+  if (localesAutoDiscover) {
+    const fromDisk = await discoverLocalesFromDisk(cwd, localesDir, resourceFormat);
+    if (fromDisk.length > 0) {
+      locales = mergeDiscoveredLocales(defaultLocale, fromDisk);
+    }
+  }
+
   const config: AitConfig = {
     sourceGlobs,
     localesDir,
@@ -139,7 +238,10 @@ export async function loadConfig(cwd: string): Promise<{ path: string; config: A
     provider,
     ...(typeof model === "string" ? { model } : {}),
     ...(resourceFormat !== "flat" ? { resourceFormat } : {}),
-    ...(namespace !== undefined ? { namespace } : {}),
+    ...(namespace !== undefined && namespaces === undefined ? { namespace } : {}),
+    ...(namespaces !== undefined ? { namespaces } : {}),
+    ...(localeShape !== undefined ? { localeShape } : {}),
+    ...(localesAutoDiscover ? { localesAutoDiscover: true } : {}),
   };
   return { path, config };
 }

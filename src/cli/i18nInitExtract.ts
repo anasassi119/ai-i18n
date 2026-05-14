@@ -230,3 +230,15 @@ export async function extractI18nInitFromFile(absolutePath: string): Promise<I18
 
   return { defaultLocale, locales, resourceFormat, namespace };
 }
+
+/**
+ * Like {@link extractI18nInitFromFile} but returns null when the file cannot be read,
+ * parsed, or does not contain extractable init options.
+ */
+export async function tryExtractI18nInitFromFile(absolutePath: string): Promise<I18nInitExtraction | null> {
+  try {
+    return await extractI18nInitFromFile(absolutePath);
+  } catch {
+    return null;
+  }
+}

@@ -5,7 +5,6 @@
 <p align="center">
   <a href="https://www.npmjs.com/package/ai-i18n"><img src="https://img.shields.io/npm/v/ai-i18n.svg" alt="npm version" /></a>
   <a href="./LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License MIT" /></a>
-  <a href="https://nodejs.org/"><img src="https://img.shields.io/node/v/ai-i18n.svg" alt="Node version" /></a>
 </p>
 
 # ai-i18n
@@ -30,6 +29,7 @@
 
 ```bash
 npm install ai-i18n --save-dev
+npx ai-i18n init
 npm install i18next react-i18next react
 # Pick one provider SDK to match ai-i18n.config.json:
 npm install openai
@@ -37,7 +37,7 @@ npm install openai
 npm install @anthropic-ai/sdk
 ```
 
-After `npm install ai-i18n`, **postinstall** may create `ai-i18n.config.json`, an **empty default locale catalog** under **`localesDir`** (default `locales/en.json` on first install), **`{localesDir}/translator-notes.json`** as `{}`, and print a short setup reminder (unless `AI_I18N_SKIP_INIT=1`). It does **not** create your **`i18n`** module — set `"i18n"` to the path of your existing i18next init file. Details: [docs/install-and-postinstall.md](./docs/install-and-postinstall.md).
+**`npm install ai-i18n` does not create or modify project files.** Run **`npx ai-i18n init`** once from the project root so the CLI can discover your i18next init module and locale layout, write **`ai-i18n.config.json`**, and optionally scaffold an empty default catalog plus **`translator-notes.json`** when those files are missing. Flags: **`--force`**, **`--silent`**, **`--i18n <path>`**. Details: [docs/install-and-postinstall.md](./docs/install-and-postinstall.md).
 
 ---
 
@@ -60,7 +60,7 @@ At runtime you use **`react-i18next`** `t` — the **scanner** only needs the st
 
 ### 1b. Optional translator notes (not in `t()`)
 
-Edit **`locales/translator-notes.json`** (or **`{localesDir}/translator-notes.json`**) — a flat map of message key → note for the model. **`init` / `generate`** create `{}` when the file is missing. See [docs/resource-contract.md](./docs/resource-contract.md).
+Edit **`locales/translator-notes.json`** (or **`{localesDir}/translator-notes.json`**) — a flat map of message key → note for the model. **`init`** may create `{}` together with a missing default catalog; **`generate`** uses it when present. See [docs/resource-contract.md](./docs/resource-contract.md).
 
 ```json
 {
@@ -85,7 +85,7 @@ Edit **`locales/translator-notes.json`** (or **`{localesDir}/translator-notes.js
 
 The CLI **parses `i18n`** (static analysis) to derive **`defaultLocale`**, **`locales`**, and usually **`resourceFormat`** / **`namespace`**. You maintain that module yourself (or point `"i18n"` at wherever you already call `i18next.init`). You can override any derived fields in JSON when needed — see [docs/configuration.md](./docs/configuration.md).
 
-If **`generate`** / **`diff`** look for **`locales/en/translation.json`** but you only have **`locales/en.json`** (e.g. after `init` / postinstall), your `i18n` file’s nested `resources` made the CLI infer the wrong on-disk layout — add **`"resourceFormat": "flat"`** to `ai-i18n.config.json`. Details: [docs/configuration.md](./docs/configuration.md#troubleshooting-namespace-path-vs-flat-json-files).
+If **`generate`** / **`diff`** look for **`locales/en/translation.json`** but you only have **`locales/en.json`** (for example after **`init`**), your `i18n` file’s nested `resources` made the CLI infer the wrong on-disk layout — add **`"resourceFormat": "flat"`** to `ai-i18n.config.json`. Details: [docs/configuration.md](./docs/configuration.md#troubleshooting-namespace-path-vs-flat-json-files).
 
 Optional: set `"resourceFormat": "i18next-namespace"` (and `"namespace"` if not `translation`) when inference does not match your layout — see [docs/resource-contract.md](./docs/resource-contract.md).
 
@@ -201,7 +201,7 @@ npx ai-i18n diff --add-missing-default  # append code-only keys to default catal
 | [docs/cli-reference.md](./docs/cli-reference.md) | Scanner rules, catalog sync |
 | [docs/workflows.md](./docs/workflows.md) | CI with `diff`, `missingKey` dev recipe |
 | [docs/environment.md](./docs/environment.md) | API keys, PowerShell |
-| [docs/install-and-postinstall.md](./docs/install-and-postinstall.md) | Lifecycle, rebuild |
+| [docs/install-and-postinstall.md](./docs/install-and-postinstall.md) | Install, `init`, discovery |
 | [ROADMAP.md](./ROADMAP.md) | Phases, acceptance status |
 
 ---
@@ -209,14 +209,14 @@ npx ai-i18n diff --add-missing-default  # append code-only keys to default catal
 ## Limitations
 
 - Scanner: **`t('stringLiteral', …)`** only — no dynamic or template-literal keys.
-- **Output layout:** default **`resourceFormat: flat`** (`{locale}.json`); optional **`i18next-namespace`**. Still **flat** `key → string` inside each catalog JSON file; plural/ICU/nested resource shapes beyond that are **i18next-side** — see [docs/resource-contract.md](./docs/resource-contract.md).
+- **Output layout:** default **`resourceFormat: flat`** (`{locale}.json`); optional **`i18next-namespace`**. Logical catalogs are string maps; on-disk JSON may use **`localeShape: nested`** (dot-path keys) — see [docs/resource-contract.md](./docs/resource-contract.md). Plural/ICU shapes beyond that are **i18next-side**.
 
 ---
 
 ## FAQs
 
 **Does the CLI require i18next in the same repo?**  
-No. **`ai-i18n`** only reads your source and JSON catalogs and calls your chosen provider. Your **application** should depend on **i18next** (and usually **react-i18next**) to load the JSON at runtime.
+No. **`ai-i18n`** only reads your source and JSON catalogs and calls your chosen provider. Your **application** should depend on **i18next** to load the JSON at runtime.
 
 **Why is a key missing from `generate` / `diff`?**  
 The scanner only sees **`t('stringLiteral', …)`** — the callee must be named **`t`**, and the first argument must be a **string literal**. Dynamic keys, variables, or template literals are ignored. Add the key and source string to the **default locale** catalog file, then run **`generate`**.
@@ -228,10 +228,10 @@ Optional **`{localesDir}/translator-notes.json`** maps message keys to short not
 **`flat`** (default): one file per locale, e.g. `locales/en.json`. **`i18next-namespace`**: one namespace file per locale, e.g. `locales/en/translation.json`. The JSON inside is still a flat `key → string` map. Configure in [`ai-i18n.config.json`](./docs/configuration.md); **`diff`** and **`generate`** use the same paths.
 
 **Can the CLI scan multiple namespace files per locale?**  
-Not in the current release. Phase 2 v1 compares code keys to the **single** default-locale catalog path for your layout. Multiple on-disk namespaces and richer key syntax are [backlog](./ROADMAP.md).
+Yes. Set **`resourceFormat": "i18next-namespace"`** and **`namespaces`** (array of JSON basenames per locale). Logical keys use the **`namespace:key`** form when more than one namespace file is configured. See [configuration.md](./docs/configuration.md) and [resource-contract.md](./docs/resource-contract.md).
 
-**How do I skip postinstall creating config / locale files?**  
-Set **`AI_I18N_SKIP_INIT=1`** in the environment when installing. Details: [docs/install-and-postinstall.md](./docs/install-and-postinstall.md).
+**What do I do after I `npm install ai-i18n`?**  
+Run **`npx ai-i18n init`** after installing. See [docs/install-and-postinstall.md](./docs/install-and-postinstall.md).
 
 **What should I run in CI?**  
 Typically **`npx ai-i18n diff`** (non-zero exit on drift). It respects **`resourceFormat`**. See [docs/workflows.md](./docs/workflows.md).
@@ -259,7 +259,7 @@ Typically **`npx ai-i18n diff`** (non-zero exit on drift). It respects **`resour
 
 ## Upgrading from 3.x
 
-Version **4** slims **`ai-i18n.config.json`**: rename **`catalogDir`** → **`localesDir`**, add **`i18n`** (path to the module that calls **`i18next.init({...})`**-style options), and remove **`defaultLocale`** / **`locales`** from the file unless you want explicit overrides. The CLI derives those from string-literal **`lng`**, **`supportedLngs`**, **`fallbackLng`**, and **`resources`** in that file. **`init`** / postinstall **do not** create that module — point **`i18n`** at your real file. See [docs/configuration.md](./docs/configuration.md).
+Version **4** slims **`ai-i18n.config.json`**: rename **`catalogDir`** → **`localesDir`**, add **`i18n`** (path to the module that calls **`i18next.init({...})`**-style options), and remove **`defaultLocale`** / **`locales`** from the file unless you want explicit overrides. The CLI derives those from string-literal **`lng`**, **`supportedLngs`**, **`fallbackLng`**, and **`resources`** in that file. **`init`** does **not** create that module — point **`i18n`** at your real file. See [docs/configuration.md](./docs/configuration.md).
 
 ---
 
