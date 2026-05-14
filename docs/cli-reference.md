@@ -4,9 +4,10 @@
 
 ```bash
 npx ai-i18n init
+npx ai-i18n init --no-input           # skip interactive wizard (auto-discovery)
 npx ai-i18n init --force              # replace existing ai-i18n.config.json
-npx ai-i18n init --silent             # minimal console output
-npx ai-i18n init --i18n src/lib/i18n.ts   # explicit i18next init module path
+npx ai-i18n init --silent             # minimal console output (non-interactive)
+npx ai-i18n init --i18n src/lib/i18n.ts   # explicit i18next init module path (non-interactive)
 npx ai-i18n generate         # fill missing/outdated keys in target locale JSON
 npx ai-i18n generate --force # re-translate every key for every target locale
 npx ai-i18n generate --locale de         # only update locale `de` (missing/outdated; repeat `--locale` for several)

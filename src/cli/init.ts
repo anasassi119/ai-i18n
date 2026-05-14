@@ -19,6 +19,10 @@ export async function defaultConfigTemplatePath(): Promise<string> {
   return path.join(packageRootFromCli(), "templates", "ai-i18n.config.default.json");
 }
 
+export async function i18nStubTemplatePath(): Promise<string> {
+  return path.join(packageRootFromCli(), "templates", "i18n.stub.ts");
+}
+
 function discoveryToWrittenFields(d: Awaited<ReturnType<typeof discoverInit>>): Record<string, unknown> {
   const o: Record<string, unknown> = {
     i18n: d.i18n,

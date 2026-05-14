@@ -101,6 +101,50 @@ describe("loadConfig", () => {
     }
   });
 
+  it("loads without i18n when defaultLocale, locales, and layout are explicit", async () => {
+    const dir = await mkdtemp(path.join(tmpdir(), "ai-i18n-cfg-noi18n-"));
+    try {
+      await mkdir(path.join(dir, "locales"), { recursive: true });
+      await writeFile(path.join(dir, "locales", "en.json"), "{}\n", "utf8");
+      await writeFile(
+        path.join(dir, "ai-i18n.config.json"),
+        JSON.stringify({
+          sourceGlobs: ["src/**/*.ts"],
+          localesDir: "locales",
+          defaultLocale: "en",
+          locales: ["en", "de"],
+          provider: "openai",
+        }),
+        "utf8",
+      );
+      const { config } = await loadConfig(dir);
+      expect(config.i18n).toBeUndefined();
+      expect(config.defaultLocale).toBe("en");
+      expect(config.locales).toEqual(["en", "de"]);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("throws without i18n if defaultLocale is missing", async () => {
+    const dir = await mkdtemp(path.join(tmpdir(), "ai-i18n-cfg-noi18n-bad-"));
+    try {
+      await writeFile(
+        path.join(dir, "ai-i18n.config.json"),
+        JSON.stringify({
+          sourceGlobs: ["a"],
+          localesDir: "locales",
+          locales: ["en"],
+          provider: "openai",
+        }),
+        "utf8",
+      );
+      await expect(loadConfig(dir)).rejects.toThrow(/without "i18n"/);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
   it("localesAutoDiscover replaces locales from disk (flat layout)", async () => {
     const dir = await mkdtemp(path.join(tmpdir(), "ai-i18n-cfg-autodisc-"));
     try {

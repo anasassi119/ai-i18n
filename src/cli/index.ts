@@ -64,10 +64,11 @@ async function main(): Promise<void> {
     const argv = args.slice(1);
     const force = argv.includes("--force");
     const silent = argv.includes("--silent");
+    const noInput = argv.includes("--no-input");
     let i18nOverride: string | undefined;
     for (let i = 0; i < argv.length; i++) {
       const a = argv[i];
-      if (a === "--force" || a === "--silent") continue;
+      if (a === "--force" || a === "--silent" || a === "--no-input") continue;
       if (a === "--i18n") {
         const v = argv[++i];
         if (v === undefined || v.startsWith("-")) {
@@ -90,8 +91,15 @@ async function main(): Promise<void> {
         return;
       }
     }
+    const useInteractive =
+      Boolean(process.stdin.isTTY) && !silent && !force && i18nOverride === undefined && !noInput;
     try {
-      await runInit(cwd, { force, silent, i18nOverride });
+      if (useInteractive) {
+        const { runInitInteractive } = await import("./initInteractive.js");
+        await runInitInteractive(cwd, { force, silent });
+      } else {
+        await runInit(cwd, { force, silent, i18nOverride });
+      }
     } catch (e) {
       console.error(e instanceof Error ? e.message : e);
       process.exitCode = 1;
@@ -100,7 +108,7 @@ async function main(): Promise<void> {
   }
 
   console.error(
-    "Usage: ai-i18n init [--force] [--silent] [--i18n <path>] | ai-i18n generate [--force] [--locale <code> ...] | ai-i18n diff [--add-missing-default]",
+    "Usage: ai-i18n init [--force] [--silent] [--no-input] [--i18n <path>] | ai-i18n generate [--force] [--locale <code> ...] | ai-i18n diff [--add-missing-default]",
   );
   process.exitCode = 1;
 }

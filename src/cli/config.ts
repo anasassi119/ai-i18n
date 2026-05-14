@@ -51,8 +51,11 @@ export interface AitConfig {
   sourceGlobs: string[];
   /** Directory containing locale JSON and `translator-notes.json` (formerly `catalogDir`). */
   localesDir: string;
-  /** Project-relative path to the module that calls `*.init({...})` for i18next (static analysis). */
-  i18n: string;
+  /**
+   * Project-relative path to the module that calls `*.init({...})` for i18next (static analysis).
+   * When omitted, `defaultLocale`, `locales`, and `resourceFormat` must be set explicitly in the JSON file.
+   */
+  i18n?: string;
   defaultLocale: string;
   locales: string[];
   /** Where `.ai-i18n-cache.json` is stored (default: ".ai-i18n"). */
@@ -101,10 +104,12 @@ export async function loadConfig(cwd: string): Promise<{ path: string; config: A
   const localesDir = localesDirRaw;
 
   const i18nRaw = o.i18n;
-  if (typeof i18nRaw !== "string" || i18nRaw.trim() === "") {
-    throw new Error('ai-i18n.config.json: "i18n" must be a non-empty string (path to your i18next init module)');
-  }
-  const i18n = i18nRaw.trim();
+  const hasI18n =
+    i18nRaw !== undefined &&
+    i18nRaw !== null &&
+    typeof i18nRaw === "string" &&
+    i18nRaw.trim() !== "";
+  const i18n = hasI18n ? (i18nRaw as string).trim() : undefined;
 
   const providerRaw = o.provider;
   let provider: Provider = "openai";
@@ -129,17 +134,42 @@ export async function loadConfig(cwd: string): Promise<{ path: string; config: A
   const cacheDirRaw = o.cacheDir;
   const cacheDir = typeof cacheDirRaw === "string" ? cacheDirRaw : ".ai-i18n";
 
-  const i18nAbs = resolve(cwd, i18n);
-  const extracted = await extractI18nInitFromFile(i18nAbs);
-
-  let defaultLocale = extracted.defaultLocale;
-  if (typeof o.defaultLocale === "string" && o.defaultLocale.trim() !== "") {
-    defaultLocale = o.defaultLocale.trim();
+  let extracted: Awaited<ReturnType<typeof extractI18nInitFromFile>> | null = null;
+  if (hasI18n) {
+    const i18nAbs = resolve(cwd, i18n!);
+    extracted = await extractI18nInitFromFile(i18nAbs);
   }
 
-  let locales = extracted.locales;
-  if (Array.isArray(o.locales) && o.locales.length > 0 && o.locales.every((x) => typeof x === "string")) {
-    locales = o.locales as string[];
+  let defaultLocale: string;
+  if (extracted) {
+    defaultLocale = extracted.defaultLocale;
+    if (typeof o.defaultLocale === "string" && o.defaultLocale.trim() !== "") {
+      defaultLocale = o.defaultLocale.trim();
+    }
+  } else {
+    const dlr = o.defaultLocale;
+    if (typeof dlr !== "string" || dlr.trim() === "") {
+      throw new Error(
+        'ai-i18n.config.json: without "i18n", you must set "defaultLocale" (non-empty string) and "locales" (non-empty array).',
+      );
+    }
+    defaultLocale = dlr.trim();
+  }
+
+  let locales: string[];
+  if (extracted) {
+    locales = extracted.locales;
+    if (Array.isArray(o.locales) && o.locales.length > 0 && o.locales.every((x) => typeof x === "string")) {
+      locales = o.locales as string[];
+    }
+  } else {
+    const locRaw = o.locales;
+    if (!Array.isArray(locRaw) || locRaw.length === 0 || !locRaw.every((x) => typeof x === "string")) {
+      throw new Error(
+        'ai-i18n.config.json: without "i18n", you must set "locales" to a non-empty array of locale codes.',
+      );
+    }
+    locales = locRaw as string[];
   }
 
   if (!locales.includes(defaultLocale)) {
@@ -147,7 +177,7 @@ export async function loadConfig(cwd: string): Promise<{ path: string; config: A
   }
 
   const resourceFormatRaw = o.resourceFormat;
-  let resourceFormat: ResourceFormat = extracted.resourceFormat;
+  let resourceFormat: ResourceFormat = extracted?.resourceFormat ?? "flat";
   if (resourceFormatRaw !== undefined && resourceFormatRaw !== null) {
     if (resourceFormatRaw === "flat" || resourceFormatRaw === "i18next-namespace") {
       resourceFormat = resourceFormatRaw;
@@ -156,26 +186,6 @@ export async function loadConfig(cwd: string): Promise<{ path: string; config: A
         'ai-i18n.config.json: resourceFormat must be "flat" or "i18next-namespace"',
       );
     }
-  }
-
-  const namespaceRaw = o.namespace;
-  let namespace: string | undefined;
-  if (resourceFormat === "i18next-namespace") {
-    if (namespaceRaw !== undefined && namespaceRaw !== null) {
-      if (typeof namespaceRaw !== "string" || namespaceRaw.trim() === "") {
-        throw new Error("ai-i18n.config.json: namespace must be a non-empty string when set");
-      }
-      namespace = namespaceRaw.trim();
-    } else {
-      namespace = extracted.namespace;
-    }
-  } else if (namespaceRaw !== undefined && namespaceRaw !== null) {
-    if (typeof namespaceRaw !== "string") {
-      throw new Error("ai-i18n.config.json: namespace must be a string when set");
-    }
-    throw new Error(
-      'ai-i18n.config.json: "namespace" is only used when resourceFormat is "i18next-namespace"',
-    );
   }
 
   const namespacesRaw = o.namespaces;
@@ -189,9 +199,36 @@ export async function loadConfig(cwd: string): Promise<{ path: string; config: A
       .filter((s) => s.length > 0);
     if (namespaces.length === 0) namespaces = undefined;
   }
+
+  const namespaceRaw = o.namespace;
+  let namespace: string | undefined;
+  if (resourceFormat === "i18next-namespace") {
+    if (namespaceRaw !== undefined && namespaceRaw !== null) {
+      if (typeof namespaceRaw !== "string" || namespaceRaw.trim() === "") {
+        throw new Error("ai-i18n.config.json: namespace must be a non-empty string when set");
+      }
+      namespace = namespaceRaw.trim();
+    } else {
+      namespace = extracted?.namespace;
+    }
+  } else if (namespaceRaw !== undefined && namespaceRaw !== null) {
+    if (typeof namespaceRaw !== "string") {
+      throw new Error("ai-i18n.config.json: namespace must be a string when set");
+    }
+    throw new Error(
+      'ai-i18n.config.json: "namespace" is only used when resourceFormat is "i18next-namespace"',
+    );
+  }
+
   if (namespaces !== undefined && resourceFormat !== "i18next-namespace") {
     throw new Error(
       'ai-i18n.config.json: "namespaces" requires resourceFormat "i18next-namespace"',
+    );
+  }
+
+  if (resourceFormat === "i18next-namespace" && !hasI18n && namespace === undefined && namespaces === undefined) {
+    throw new Error(
+      'ai-i18n.config.json: without "i18n", set "namespace" or "namespaces" when resourceFormat is "i18next-namespace".',
     );
   }
 
@@ -231,7 +268,7 @@ export async function loadConfig(cwd: string): Promise<{ path: string; config: A
   const config: AitConfig = {
     sourceGlobs,
     localesDir,
-    i18n,
+    ...(i18n !== undefined ? { i18n } : {}),
     defaultLocale,
     locales,
     cacheDir,

@@ -37,7 +37,7 @@ npm install openai
 npm install @anthropic-ai/sdk
 ```
 
-**`npm install ai-i18n` does not create or modify project files.** Run **`npx ai-i18n init`** once from the project root so the CLI can discover your i18next init module and locale layout, write **`ai-i18n.config.json`**, and optionally scaffold an empty default catalog plus **`translator-notes.json`** when those files are missing. Flags: **`--force`**, **`--silent`**, **`--i18n <path>`**. Details: [docs/install-and-postinstall.md](./docs/install-and-postinstall.md).
+**`npm install ai-i18n` does not create or modify project files.** Run **`npx ai-i18n init`** once from the project root so the CLI can discover your i18next init module and locale layout, write **`ai-i18n.config.json`**, and optionally scaffold an empty default catalog plus **`translator-notes.json`** when those files are missing. From a **TTY**, `init` runs **interactively** by default (absolute paths for locales + optional i18n; blank i18n omits `"i18n"` from config). Use **`--no-input`** for non-interactive discovery in a terminal (e.g. CI). Flags: **`--force`**, **`--silent`**, **`--i18n <path>`**. Details: [docs/install-and-postinstall.md](./docs/install-and-postinstall.md).
 
 ---
 
@@ -83,7 +83,7 @@ Edit **`locales/translator-notes.json`** (or **`{localesDir}/translator-notes.js
 }
 ```
 
-The CLI **parses `i18n`** (static analysis) to derive **`defaultLocale`**, **`locales`**, and usually **`resourceFormat`** / **`namespace`**. You maintain that module yourself (or point `"i18n"` at wherever you already call `i18next.init`). You can override any derived fields in JSON when needed — see [docs/configuration.md](./docs/configuration.md).
+The CLI **parses `i18n`** (static analysis) when set to derive **`defaultLocale`**, **`locales`**, and usually **`resourceFormat`** / **`namespace`**. You maintain that module yourself (or point `"i18n"` at wherever you already call `i18next.init`). Omit **`i18n`** entirely if you only want catalog-driven config: then **`defaultLocale`**, **`locales`**, and layout fields must be explicit in JSON. You can override any derived fields in JSON when needed — see [docs/configuration.md](./docs/configuration.md).
 
 If **`generate`** / **`diff`** look for **`locales/en/translation.json`** but you only have **`locales/en.json`** (for example after **`init`**), your `i18n` file’s nested `resources` made the CLI infer the wrong on-disk layout — add **`"resourceFormat": "flat"`** to `ai-i18n.config.json`. Details: [docs/configuration.md](./docs/configuration.md#troubleshooting-namespace-path-vs-flat-json-files).
 
@@ -167,7 +167,8 @@ void i18next.use(initReactI18next).init({ resources, lng: "en", fallbackLng: "en
 ## CLI commands
 
 ```bash
-npx ai-i18n init              # create ai-i18n.config.json (+ default catalog and translator-notes if missing)
+npx ai-i18n init              # TTY: interactive wizard; else auto-discovery
+npx ai-i18n init --no-input   # non-interactive discovery (use in CI from a terminal)
 npx ai-i18n init --force      # replace config from template
 npx ai-i18n generate          # translate / fill target locale files
 npx ai-i18n generate --force  # re-translate all keys for every target locale

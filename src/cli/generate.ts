@@ -48,11 +48,14 @@ function validateAndNormalizeOnlyLocales(requested: string[], config: AitConfig)
   const unknown = deduped.filter((l) => !config.locales.includes(l));
   if (unknown.length > 0) {
     const listed = config.locales.length ? config.locales.join(", ") : "(none)";
+    const i18nHint = config.i18n
+      ? `otherwise from your i18next init file "${config.i18n}" (string literals in supportedLngs, resources, fallbackLng, etc.).`
+      : 'your ai-i18n.config.json must list every locale in "locales" (no "i18n" file is configured).';
     throw new Error(
       `[ai-i18n] generate: --locale uses unknown code(s): ${unknown.join(", ")}.\n` +
         `Configured locale codes are: ${listed} (default: "${config.defaultLocale}").\n` +
-        `They are taken from ai-i18n.config.json "locales" when set, otherwise from your i18next init file "${config.i18n}" ` +
-        `(string literals in supportedLngs, resources, fallbackLng, etc.). Add the missing language(s) there, or add an explicit "locales" array in ai-i18n.config.json, then run generate again.`,
+        `They are taken from ai-i18n.config.json "locales" when set; ${i18nHint}\n` +
+        `Add the missing language(s) there, or add an explicit "locales" array in ai-i18n.config.json, then run generate again.`,
     );
   }
   const targets = deduped.filter((l) => l !== config.defaultLocale);
@@ -80,7 +83,7 @@ async function throwHelpfulMissingDefaultCatalog(
       throw new Error(
         `Missing or invalid catalog: ${primary}\n\n` +
           `Found a flat default catalog instead: ${flatDefaultPath}\n` +
-          `The CLI inferred i18next-namespace paths from your "i18n" file. If your locale files are one JSON per language (${config.defaultLocale}.json), add to ai-i18n.config.json:\n` +
+          `The CLI inferred i18next-namespace paths from your "i18n" file (or config). If your locale files are one JSON per language (${config.defaultLocale}.json), add to ai-i18n.config.json:\n` +
           `  "resourceFormat": "flat"\n`,
       );
     }

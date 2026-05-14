@@ -21,7 +21,7 @@ Place at the **project root** (where you run the CLI).
 |--------|----------|-------------|
 | `sourceGlobs` | yes | Glob patterns for files to scan. |
 | `localesDir` | yes | Directory of locale JSON files (layout under it follows `resourceFormat`). **`translator-notes.json`** lives here — see [resource-contract.md](./resource-contract.md). |
-| `i18n` | yes | Project-relative path to **your** module that calls **`*.init({...})`** for i18next-style setup. The CLI **parses this file only** (no execution) to derive **`defaultLocale`**, **`locales`**, and usually **`resourceFormat`** / **`namespace`**. This package **does not** create that file — point it at the module you already use (or add one), then adjust the path in JSON if it lives elsewhere. |
+| `i18n` | conditional | Project-relative path to **your** module that calls **`*.init({...})`** for i18next-style setup. When set, the CLI **parses this file only** (no execution) to derive **`defaultLocale`**, **`locales`**, and usually **`resourceFormat`** / **`namespace`**. **When omitted**, you must set **`defaultLocale`**, **`locales`**, and layout fields (**`resourceFormat`**, and for namespace layout **`namespace`** or **`namespaces`**) explicitly — useful for catalog-only workflows. |
 | `cacheDir` | no (default `.ai-i18n`) | `.ai-i18n-cache.json` only. |
 | `provider` | no (defaults to `openai` if omitted) | `openai` \| `anthropic`. **Generated** default from `init` is `openai`. |
 | `model` | no | Provider model id. OpenAI CLI default when omitted: **`gpt-5-mini`**. |

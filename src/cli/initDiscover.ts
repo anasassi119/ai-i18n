@@ -106,6 +106,205 @@ async function findI18nModulePath(cwd: string, i18nOverride?: string): Promise<s
   return toPosixRel(cwd, hits[0]!.abs);
 }
 
+/** All project files under standard globs that pass static i18next `init` extraction. */
+export async function listExtractableI18nCandidates(cwd: string): Promise<
+  {
+    rel: string;
+    abs: string;
+    rank: number;
+    defaultLocale: string;
+    locales: string[];
+  }[]
+> {
+  const files = await fg([...I18N_SEARCH_GLOBS], {
+    cwd,
+    onlyFiles: true,
+    unique: true,
+    ignore: ["**/node_modules/**", "**/dist/**", "**/.next/**"],
+    dot: false,
+  });
+  const out: { rel: string; abs: string; rank: number; defaultLocale: string; locales: string[] }[] = [];
+  for (const rel of files) {
+    const abs = path.resolve(cwd, rel);
+    const ext = await tryExtractI18nInitFromFile(abs);
+    if (!ext) continue;
+    out.push({
+      rel: rel.split(path.sep).join("/"),
+      abs,
+      rank: preferredBasenameRank(abs),
+      defaultLocale: ext.defaultLocale,
+      locales: ext.locales,
+    });
+  }
+  out.sort((a, b) => (a.rank !== b.rank ? a.rank - b.rank : a.rel.localeCompare(b.rel)));
+  return out;
+}
+
+const RESERVED_ROOT_JSON = new Set(["translator-notes"]);
+
+function pickDefaultLocale(codes: string[]): string {
+  if (codes.length === 0) return "en";
+  if (codes.includes("en")) return "en";
+  return [...codes].sort((a, b) => a.localeCompare(b))[0]!;
+}
+
+export type LocalesDirInference = {
+  localesDirRel: string;
+  resourceFormat: ResourceFormat;
+  namespace?: string;
+  namespaces?: string[];
+  locales: string[];
+  defaultLocale: string;
+  localeShape: LocaleShape;
+  /** Root has both `*.json` locale files and per-locale subdirs with JSON — user must choose unless `preferWhenAmbiguous` is set. */
+  ambiguous: boolean;
+  /** When `ambiguous`, locale basenames implied by root `*.json` files (excluding translator-notes). */
+  flatLocaleCodes?: string[];
+  /** When `ambiguous`, subdirectory names that contain namespace JSON. */
+  namespaceLocaleCodes?: string[];
+};
+
+/**
+ * Inspect a locales root directory (absolute) and infer catalog layout vs `cwd` (for relative `localesDir`).
+ * When both flat files and per-locale dirs exist, pass `preferWhenAmbiguous` from an interactive choice, or handle `ambiguous: true`.
+ */
+export async function inferCatalogLayoutFromLocalesDir(
+  localesAbsRoot: string,
+  cwd: string,
+  preferWhenAmbiguous?: "flat" | "namespace",
+): Promise<LocalesDirInference> {
+  const localesDirRel = toPosixRel(cwd, path.resolve(localesAbsRoot));
+  let dirents;
+  try {
+    dirents = await readdir(localesAbsRoot, { withFileTypes: true });
+  } catch {
+    return {
+      localesDirRel,
+      resourceFormat: "flat",
+      locales: [],
+      defaultLocale: "en",
+      localeShape: "flat",
+      ambiguous: false,
+    };
+  }
+
+  const jsonAtRoot: string[] = [];
+  const subdirs: string[] = [];
+  for (const d of dirents) {
+    if (d.isFile() && d.name.endsWith(".json")) {
+      const code = d.name.replace(/\.json$/i, "");
+      if (code && !RESERVED_ROOT_JSON.has(code)) jsonAtRoot.push(code);
+    } else if (d.isDirectory() && !d.name.startsWith(".")) {
+      subdirs.push(d.name);
+    }
+  }
+
+  const subdirsWithNsJson: string[] = [];
+  for (const name of subdirs) {
+    const nss = await listNamespaceJsonFiles(path.join(localesAbsRoot, name));
+    if (nss.length > 0) subdirsWithNsJson.push(name);
+  }
+
+  const ambiguousRaw = jsonAtRoot.length > 0 && subdirsWithNsJson.length > 0;
+  const flatCodesSorted = [...new Set(jsonAtRoot)].sort((a, b) => a.localeCompare(b));
+  const nsCodesSorted = [...new Set(subdirsWithNsJson)].sort((a, b) => a.localeCompare(b));
+
+  const buildNamespace = async (
+    localeCodes: string[],
+    ambiguousFlag: boolean,
+  ): Promise<LocalesDirInference> => {
+    const defaultLocale = pickDefaultLocale(localeCodes);
+    const fromDir = await inferLayoutFromLocaleDir(cwd, localesDirRel, defaultLocale);
+    let resourceFormat: ResourceFormat = "i18next-namespace";
+    let namespace: string | undefined;
+    let namespaces: string[] | undefined;
+    if (fromDir?.namespaces) {
+      namespaces = fromDir.namespaces;
+    } else if (fromDir?.namespace) {
+      namespace = fromDir.namespace;
+    } else {
+      namespace = "translation";
+    }
+    const primaryNs = namespaces?.[0] ?? namespace ?? "translation";
+    const samplePath = path.join(localesAbsRoot, defaultLocale, `${primaryNs}.json`);
+    let localeShape: LocaleShape = "flat";
+    try {
+      const raw = await readFile(samplePath, "utf8");
+      localeShape = inferLocaleShapeFromParsed(JSON.parse(raw) as unknown);
+    } catch {
+      localeShape = "flat";
+    }
+    return {
+      localesDirRel,
+      resourceFormat,
+      namespace,
+      namespaces,
+      locales: localeCodes,
+      defaultLocale,
+      localeShape,
+      ambiguous: ambiguousFlag,
+    };
+  };
+
+  const buildFlat = async (codes: string[], ambiguousFlag: boolean): Promise<LocalesDirInference> => {
+    const defaultLocale = pickDefaultLocale(codes);
+    const samplePath = path.join(localesAbsRoot, `${defaultLocale}.json`);
+    let localeShape: LocaleShape = "flat";
+    try {
+      const raw = await readFile(samplePath, "utf8");
+      localeShape = inferLocaleShapeFromParsed(JSON.parse(raw) as unknown);
+    } catch {
+      localeShape = "flat";
+    }
+    return {
+      localesDirRel,
+      resourceFormat: "flat",
+      locales: codes,
+      defaultLocale,
+      localeShape,
+      ambiguous: ambiguousFlag,
+    };
+  };
+
+  if (ambiguousRaw && preferWhenAmbiguous === "flat") {
+    return buildFlat(flatCodesSorted, false);
+  }
+  if (ambiguousRaw && preferWhenAmbiguous === "namespace") {
+    return buildNamespace(nsCodesSorted, false);
+  }
+
+  const ambiguous = ambiguousRaw;
+
+  if (ambiguous) {
+    const ns = await buildNamespace(nsCodesSorted, true);
+    return {
+      ...ns,
+      ambiguous: true,
+      flatLocaleCodes: flatCodesSorted,
+      namespaceLocaleCodes: nsCodesSorted,
+    };
+  }
+
+  if (jsonAtRoot.length > 0) {
+    const codes = [...new Set(jsonAtRoot)].sort((a, b) => a.localeCompare(b));
+    return buildFlat(codes, false);
+  }
+
+  if (subdirsWithNsJson.length > 0) {
+    const codes = [...new Set(subdirsWithNsJson)].sort((a, b) => a.localeCompare(b));
+    return buildNamespace(codes, false);
+  }
+
+  return {
+    localesDirRel,
+    resourceFormat: "flat",
+    locales: [],
+    defaultLocale: "en",
+    localeShape: "flat",
+    ambiguous: false,
+  };
+}
+
 /**
  * Order for finding an existing default-locale catalog on disk (first match wins).
  * `ns` is the namespace filename without `.json` from i18n extraction (often `translation`).
@@ -124,7 +323,8 @@ function defaultLocaleProbeAbsPaths(
   return out;
 }
 
-async function listNamespaceJsonFiles(localeDirAbs: string): Promise<string[]> {
+/** Namespace `.json` basenames under a locale directory (e.g. `translation`, `common`). */
+export async function listNamespaceJsonFiles(localeDirAbs: string): Promise<string[]> {
   let names: string[];
   try {
     names = await readdir(localeDirAbs);
@@ -141,7 +341,7 @@ async function listNamespaceJsonFiles(localeDirAbs: string): Promise<string[]> {
   return [...new Set(out)].sort((a, b) => a.localeCompare(b));
 }
 
-async function inferLayoutFromLocaleDir(
+export async function inferLayoutFromLocaleDir(
   cwd: string,
   localesDirRel: string,
   lng: string,
@@ -163,7 +363,7 @@ async function defaultLocalesDirWhenNothingOnDisk(cwd: string): Promise<string> 
   return "locales";
 }
 
-async function buildSourceGlobs(cwd: string): Promise<string[]> {
+export async function buildSourceGlobs(cwd: string): Promise<string[]> {
   const globs = ["src/**/*.{tsx,ts,jsx,js}"];
   const appHits = await fg(["app/**/*.{tsx,ts}"], {
     cwd,
