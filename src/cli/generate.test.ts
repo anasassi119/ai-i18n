@@ -84,6 +84,73 @@ describe("runGenerateWithConfig (default catalog key order)", () => {
   });
 });
 
+const flatI18nEnFrDe = `
+const i18next = { init(_o: Record<string, unknown>) {} };
+i18next.init({ lng: "en", supportedLngs: ["en", "fr", "de"], resources: {} });
+`;
+
+describe("runGenerateWithConfig (onlyLocales)", () => {
+  let dir: string;
+
+  afterEach(async () => {
+    if (dir) await rm(dir, { recursive: true, force: true });
+  });
+
+  it("only processes listed locales and leaves others unchanged", async () => {
+    dir = await mkdtemp(path.join(tmpdir(), "ai-i18n-gen-only-locale-"));
+    await mkdir(path.join(dir, "src"), { recursive: true });
+    await mkdir(path.join(dir, "locales"), { recursive: true });
+    await writeFile(path.join(dir, "src", "i18n.ts"), flatI18nEnFrDe, "utf8");
+    await writeFile(
+      path.join(dir, "src", "App.tsx"),
+      `declare function t(key: string, opts?: Record<string, unknown>): string;\nexport function X() { return <span>{t("k")}</span>; }\n`,
+      "utf8",
+    );
+    await writeFile(
+      path.join(dir, "locales", "en.json"),
+      JSON.stringify({ k: "Hello" }, null, 2) + "\n",
+      "utf8",
+    );
+    await writeFile(
+      path.join(dir, "locales", "fr.json"),
+      JSON.stringify({ k: "[fr]KEEP" }, null, 2) + "\n",
+      "utf8",
+    );
+    await writeFile(
+      path.join(dir, "locales", "de.json"),
+      JSON.stringify({ k: "[de]old" }, null, 2) + "\n",
+      "utf8",
+    );
+
+    await runGenerateWithConfig(
+      dir,
+      baseConfig({ locales: ["en", "fr", "de"], resourceFormat: "flat" }),
+      true,
+      { onlyLocales: ["de"] },
+    );
+
+    const frRaw = await readFile(path.join(dir, "locales", "fr.json"), "utf8");
+    expect(JSON.parse(frRaw)).toEqual({ k: "[fr]KEEP" });
+    const deRaw = await readFile(path.join(dir, "locales", "de.json"), "utf8");
+    expect(JSON.parse(deRaw)).toEqual({ k: "[de]Hello" });
+  });
+
+  it("rejects --locale not present in config locales", async () => {
+    dir = await mkdtemp(path.join(tmpdir(), "ai-i18n-gen-locale-bad-"));
+    await mkdir(path.join(dir, "locales"), { recursive: true });
+    await writeFile(
+      path.join(dir, "locales", "en.json"),
+      JSON.stringify({ k: "x" }, null, 2) + "\n",
+      "utf8",
+    );
+    await expect(
+      runGenerateWithConfig(dir, baseConfig({ locales: ["en", "fr"], resourceFormat: "flat" }), false, {
+        onlyLocales: ["de"],
+      }),
+    ).rejects.toThrow(/unknown or not in config locales/);
+  });
+});
+
 describe("runGenerateWithConfig (i18next-namespace layout)", () => {
   let dir: string;
 

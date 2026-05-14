@@ -50,16 +50,52 @@ function defaultStringKeys(defaultCatalog: Catalog): string[] {
   return Object.keys(defaultCatalog).filter((k) => typeof defaultCatalog[k] === "string");
 }
 
-export async function runGenerate(cwd: string, force: boolean): Promise<void> {
-  const { config } = await loadConfig(cwd);
-  await runGenerateWithConfig(cwd, config, force);
+export type RunGenerateOptions = {
+  force?: boolean;
+  /** If set, only these target locales are processed (must appear in config `locales`, not the default). */
+  onlyLocales?: string[];
+};
+
+function validateAndNormalizeOnlyLocales(requested: string[], config: AitConfig): string[] {
+  const deduped = [...new Set(requested.map((x) => x.trim()).filter((x) => x.length > 0))];
+  if (deduped.length === 0) {
+    throw new Error("[ai-i18n] generate: --locale requires a non-empty value (e.g. --locale de).");
+  }
+  const unknown = deduped.filter((l) => !config.locales.includes(l));
+  if (unknown.length > 0) {
+    throw new Error(
+      `[ai-i18n] generate: --locale unknown or not in config locales: ${unknown.join(", ")}. Configured: ${config.locales.join(", ")}.`,
+    );
+  }
+  const targets = deduped.filter((l) => l !== config.defaultLocale);
+  if (targets.length === 0) {
+    throw new Error(
+      `[ai-i18n] generate: --locale must name at least one target locale (not the default "${config.defaultLocale}").`,
+    );
+  }
+  return targets;
 }
+
+export async function runGenerate(cwd: string, options: RunGenerateOptions = {}): Promise<void> {
+  const { config } = await loadConfig(cwd);
+  await runGenerateWithConfig(cwd, config, options.force ?? false, { onlyLocales: options.onlyLocales });
+}
+
+export type RunGenerateWithConfigOptions = {
+  onlyLocales?: string[];
+};
 
 export async function runGenerateWithConfig(
   cwd: string,
   config: AitConfig,
   force: boolean,
+  options: RunGenerateWithConfigOptions = {},
 ): Promise<void> {
+  const onlyLocales =
+    options.onlyLocales && options.onlyLocales.length > 0
+      ? validateAndNormalizeOnlyLocales(options.onlyLocales, config)
+      : undefined;
+
   const translator = resolveTranslator(config);
   await ensureTranslatorNotesFile(cwd, config.localesDir);
   const translatorNotes = await loadTranslatorNotes(cwd, config.localesDir);
@@ -104,8 +140,15 @@ export async function runGenerateWithConfig(
   const defaultKeys = defaultStringKeys(defaultCatalog);
   const defaultKeySet = new Set(defaultKeys);
 
+  const only = onlyLocales;
+  const shouldProcessLocale = (locale: string): boolean => {
+    if (locale === config.defaultLocale) return false;
+    if (!only || only.length === 0) return true;
+    return only.includes(locale);
+  };
+
   for (const locale of config.locales) {
-    if (locale === config.defaultLocale) continue;
+    if (!shouldProcessLocale(locale)) continue;
 
     const targetPath = localeCatalogPath(cwd, config, locale);
     const existing = (await readJson<Catalog>(targetPath)) ?? {};

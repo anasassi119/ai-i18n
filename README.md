@@ -170,7 +170,9 @@ void i18next.use(initReactI18next).init({ resources, lng: "en", fallbackLng: "en
 npx ai-i18n init              # create ai-i18n.config.json (+ default catalog and translator-notes if missing)
 npx ai-i18n init --force      # replace config from template
 npx ai-i18n generate          # translate / fill target locale files
-npx ai-i18n generate --force  # re-translate all keys from default catalog
+npx ai-i18n generate --force  # re-translate all keys for every target locale
+npx ai-i18n generate --locale de          # only update locale `de` (missing/outdated)
+npx ai-i18n generate --force --locale de # re-translate only `de` (ignores per-key cache for that locale)
 npx ai-i18n diff              # report drift; exits 1 if anything is wrong (for CI)
 npx ai-i18n diff --add-missing-default  # append code-only keys to default catalog (empty strings), then re-check
 ```

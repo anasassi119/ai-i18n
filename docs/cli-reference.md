@@ -6,7 +6,9 @@
 npx ai-i18n init
 npx ai-i18n init --force     # replace existing ai-i18n.config.json
 npx ai-i18n generate         # fill missing/outdated keys in target locale JSON
-npx ai-i18n generate --force # re-translate every key from default catalog
+npx ai-i18n generate --force # re-translate every key for every target locale
+npx ai-i18n generate --locale de         # only update locale `de` (missing/outdated; repeat `--locale` for several)
+npx ai-i18n generate --force --locale de # re-translate only `de` (ignores per-key cache for that locale)
 npx ai-i18n diff             # compare code vs catalogs; exits 1 if drift (for CI)
 npx ai-i18n diff --add-missing-default  # append keys in code but missing from default catalog (empty values); then re-check
 ```
@@ -32,6 +34,8 @@ Do **not** use `npm ai-i18n` (invalid). Prefer **`npx ai-i18n …`**.
 ## Catalog sync (default → targets)
 
 Each target locale file is **rebuilt from keys in the default catalog** (string entries only), using the **same key order** as the default locale JSON. Keys removed or renamed in the default JSON are **pruned** from targets on the next `generate` (no `--force` needed for pruning). `diff` lists keys in targets that are absent from the default catalog.
+
+**`generate --locale <code>`:** limits work to locale(s) that appear in config `locales` and are **not** the default locale. You can pass **`--locale` more than once** or use **`--locale=de`**. Omit **`--locale`** to process every target locale as before.
 
 ## Optional helper: `ai-i18n/i18next`
 
