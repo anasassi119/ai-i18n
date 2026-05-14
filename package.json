@@ -1,6 +1,6 @@
 {
   "name": "ai-i18n",
-  "version": "0.1.4",
+  "version": "0.1.6",
   "description": "React i18n runtime and CLI to generate locale files from keys + optional translator hints (OpenAI / Anthropic / stub).",
   "type": "module",
   "main": "./dist/index.js",

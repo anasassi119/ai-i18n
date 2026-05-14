@@ -10,7 +10,7 @@ No dependency on `i18next` or `react-i18next`.
 npm install ai-i18n react
 ```
 
-On **`npm install`**, if your app **directly** lists `ai-i18n` in `dependencies` / `devDependencies` / `optionalDependencies` and **`ai-i18n.config.json` is missing**, a default file is created in the project root (same directory npm was run from, usually `INIT_CWD`). To skip that behavior (e.g. in CI), set **`AI_I18N_SKIP_INIT=1`**.
+On **`npm install`**, if **`ai-i18n.config.json` is missing**, the postinstall script picks your app root by walking up from this package: it prefers a directory whose **`node_modules` entry for this package** resolves to the installed copy (so it still works on the **first** install, when npm has not yet written `ai-i18n` into your `package.json`), and otherwise falls back to a **`package.json` that lists `ai-i18n`** (including when the script’s cwd is inside `node_modules/ai-i18n` and `INIT_CWD` is missing). Set **`AI_I18N_SKIP_INIT=1`** to skip (e.g. CI). Set **`AI_I18N_DEBUG=1`** for a short log (resolved paths, skip reasons). Lifecycle scripts do not re-run on a no-op install — use **`npm rebuild ai-i18n`** or **`npx ai-i18n init`** if you need the default config again.
 
 You can always scaffold or overwrite manually:
 
