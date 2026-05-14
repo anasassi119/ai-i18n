@@ -1,9 +1,11 @@
 import { runDiff } from "./diff.js";
+import { loadEnvFromProject } from "./env.js";
 import { runGenerate } from "./generate.js";
 import { runInit } from "./init.js";
 
 async function main(): Promise<void> {
   const cwd = process.cwd();
+  loadEnvFromProject(cwd);
   const args = process.argv.slice(2);
   const cmd = args[0];
 

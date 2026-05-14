@@ -49,7 +49,9 @@ export async function openAiTranslator(
 
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
-    throw new Error("OPENAI_API_KEY is not set.");
+    throw new Error(
+      "OPENAI_API_KEY is not set. Export it in your shell or put OPENAI_API_KEY=… in a .env file next to ai-i18n.config.json (the CLI loads .env from the project root).",
+    );
   }
 
   const client = new OpenAI({ apiKey });

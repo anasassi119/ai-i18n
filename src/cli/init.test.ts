@@ -11,7 +11,7 @@ describe("runInit", () => {
       const r1 = await runInit(dir, { silent: true });
       expect(r1).toBe("created");
       const body = await readFile(path.join(dir, "ai-i18n.config.json"), "utf8");
-      expect(body).toContain('"provider": "stub"');
+      expect(body).toContain('"provider": "openai"');
 
       const r2 = await runInit(dir, { silent: true });
       expect(r2).toBe("skipped");

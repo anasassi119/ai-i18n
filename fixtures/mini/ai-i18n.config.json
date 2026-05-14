@@ -3,6 +3,7 @@
   "defaultLocale": "en",
   "locales": ["fr", "ar", "es"],
   "catalogDir": "locales",
+  "cacheDir": ".ai-i18n",
   "provider": "openai",
-  "cacheDir": ".ai-i18n"
+  "model": "gpt-5-mini"
 }

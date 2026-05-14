@@ -1,6 +1,6 @@
 # ai-i18n
 
-Standalone React **runtime** (`useTranslation`, `t`) plus a **CLI** that scans `t('messageKey', { hint: '…' })` calls, reads your **default-locale JSON**, and fills **target locale** files using a **stub** translator (default), **OpenAI**, or **Anthropic** (your API keys).
+Standalone React **runtime** (`useTranslation`, `t`) plus a **CLI** that scans `t('messageKey', { hint: '…' })` calls, reads your **default-locale JSON**, and fills **target locale** files using **OpenAI** (default in the generated config), a **stub** translator, or **Anthropic** (your API keys).
 
 No dependency on `i18next` or `react-i18next`.
 
@@ -19,7 +19,7 @@ npx ai-i18n init
 npx ai-i18n init --force
 ```
 
-For cloud translation, also install the SDK you use (optional peer dependencies):
+For cloud translation, also install the SDK you use (optional peer dependencies). The **postinstall / `init` default** config sets `"provider": "openai"`, so install **`openai`** unless you change the provider to `stub` or `anthropic`:
 
 ```bash
 npm install openai
@@ -82,7 +82,7 @@ Place at the project root (where you run the CLI).
   "locales": ["fr", "es"],
   "catalogDir": "locales",
   "cacheDir": ".ai-i18n",
-  "provider": "stub",
+  "provider": "openai",
   "model": "gpt-4o-mini"
 }
 ```
@@ -94,10 +94,12 @@ Place at the project root (where you run the CLI).
 | `locales` | yes | Target locale codes (files `{code}.json`). The default locale is skipped for generation. |
 | `catalogDir` | yes | Directory containing `en.json`, `fr.json`, … |
 | `cacheDir` | no (default `.ai-i18n`) | Stores `.ai-i18n-cache.json` (source-string hashes) and `.ai-i18n-hints.json` (static hints from code). |
-| `provider` | no (default `stub`) | `stub` \| `openai` \| `anthropic`. |
+| `provider` | no (default `stub` when omitted) | `stub` \| `openai` \| `anthropic`. The **generated** default from `init` / postinstall is `openai`. |
 | `model` | no | Provider-specific model id override. |
 
 ### Environment variables
+
+The CLI loads a **`.env` file in the project root** (next to `ai-i18n.config.json`, i.e. the current working directory) **before** reading config or calling providers. Values already set in the real environment **win** over entries in `.env`.
 
 - **OpenAI:** `OPENAI_API_KEY` (when `provider` is `openai`).
 - **Anthropic:** `ANTHROPIC_API_KEY` (when `provider` is `anthropic`).

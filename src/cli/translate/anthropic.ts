@@ -41,7 +41,9 @@ export async function anthropicTranslator(
 
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
-    throw new Error("ANTHROPIC_API_KEY is not set.");
+    throw new Error(
+      "ANTHROPIC_API_KEY is not set. Export it in your shell or put ANTHROPIC_API_KEY=… in a .env file at root",
+    );
   }
 
   const client = new Anthropic({ apiKey });

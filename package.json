@@ -59,6 +59,7 @@
     "@babel/parser": "^7.26.0",
     "@babel/traverse": "^7.26.0",
     "@babel/types": "^7.26.0",
+    "dotenv": "^16.6.1",
     "fast-glob": "^3.3.2"
   },
   "devDependencies": {

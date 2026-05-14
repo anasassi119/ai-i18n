@@ -4,5 +4,6 @@
   "locales": ["fr"],
   "catalogDir": "locales",
   "cacheDir": ".ai-i18n",
-  "provider": "stub"
+  "provider": "openai",
+  "model": "gpt-4o-mini"
 }
