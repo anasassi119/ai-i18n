@@ -147,7 +147,7 @@ describe("runGenerateWithConfig (onlyLocales)", () => {
       runGenerateWithConfig(dir, baseConfig({ locales: ["en", "fr"], resourceFormat: "flat" }), false, {
         onlyLocales: ["de"],
       }),
-    ).rejects.toThrow(/unknown or not in config locales/);
+    ).rejects.toThrow(/unknown code\(s\): de[\s\S]*supportedLngs/);
   });
 });
 
@@ -275,5 +275,24 @@ describe("runGenerateWithConfig (multi-namespace)", () => {
     const commonFr = JSON.parse(await readFile(path.join(dir, "locales", "fr", "common.json"), "utf8"));
     expect(navFr).toEqual({ link: "[fr]Nav link" });
     expect(commonFr).toEqual({ ok: "[fr]OK" });
+  });
+
+  it("logs when locales has only the default language (nothing to translate)", async () => {
+    const log = vi.spyOn(console, "log").mockImplementation(() => {});
+    dir = await mkdtemp(path.join(tmpdir(), "ai-i18n-gen-solo-"));
+    await runGenerateWithConfig(dir, baseConfig({ locales: ["en"] }), false);
+    expect(log.mock.calls.map((c) => c.join(" ")).join("\n")).toContain("nothing to do");
+    log.mockRestore();
+  });
+
+  it("rejects --locale not in config with a helpful message", async () => {
+    await expect(
+      runGenerateWithConfig(
+        "/",
+        baseConfig({ locales: ["en"], i18n: "src/i18n.ts" }),
+        false,
+        { onlyLocales: ["ar"] },
+      ),
+    ).rejects.toThrow(/unknown code\(s\): ar[\s\S]*src\/i18n\.ts[\s\S]*supportedLngs/);
   });
 });

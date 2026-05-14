@@ -11,6 +11,11 @@ npx ai-i18n generate         # fill missing/outdated keys in target locale JSON
 npx ai-i18n generate --force # re-translate every key for every target locale
 npx ai-i18n generate --locale de         # only update locale `de` (missing/outdated; repeat `--locale` for several)
 npx ai-i18n generate --force --locale de # re-translate only `de` (ignores per-key cache for that locale)
+```
+
+**`generate`** only updates **non-default** locales listed in **`locales`** (the default language is the source catalog). If **`locales`** only contains the default, the CLI prints a short message and exits — add other language codes (from i18next `supportedLngs`) or use **`--locale`**.
+
+```bash
 npx ai-i18n diff             # compare code vs catalogs; exits 1 if drift (for CI)
 npx ai-i18n diff --add-missing-default  # append keys in code but missing from default catalog (empty values); then re-check
 ```

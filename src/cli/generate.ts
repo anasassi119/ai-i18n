@@ -47,8 +47,12 @@ function validateAndNormalizeOnlyLocales(requested: string[], config: AitConfig)
   }
   const unknown = deduped.filter((l) => !config.locales.includes(l));
   if (unknown.length > 0) {
+    const listed = config.locales.length ? config.locales.join(", ") : "(none)";
     throw new Error(
-      `[ai-i18n] generate: --locale unknown or not in config locales: ${unknown.join(", ")}. Configured: ${config.locales.join(", ")}.`,
+      `[ai-i18n] generate: --locale uses unknown code(s): ${unknown.join(", ")}.\n` +
+        `Configured locale codes are: ${listed} (default: "${config.defaultLocale}").\n` +
+        `They are taken from ai-i18n.config.json "locales" when set, otherwise from your i18next init file "${config.i18n}" ` +
+        `(string literals in supportedLngs, resources, fallbackLng, etc.). Add the missing language(s) there, or add an explicit "locales" array in ai-i18n.config.json, then run generate again.`,
     );
   }
   const targets = deduped.filter((l) => l !== config.defaultLocale);
@@ -115,6 +119,17 @@ export async function runGenerateWithConfig(
     options.onlyLocales && options.onlyLocales.length > 0
       ? validateAndNormalizeOnlyLocales(options.onlyLocales, config)
       : undefined;
+
+  const configuredTargets = config.locales.filter((l) => l !== config.defaultLocale);
+  if ((!onlyLocales || onlyLocales.length === 0) && configuredTargets.length === 0) {
+    console.log(
+      `[ai-i18n] generate: nothing to do — "locales" only includes the default language "${config.defaultLocale}".`,
+    );
+    console.log(
+      `[ai-i18n] generate translates other locales from the default catalog. Add language codes to "locales" in ai-i18n.config.json (from i18next supportedLngs / resources), or run: npx ai-i18n generate --locale <code>`,
+    );
+    return;
+  }
 
   const translator = resolveTranslator(config);
   await ensureTranslatorNotesFile(cwd, config.localesDir);

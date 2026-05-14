@@ -44,7 +44,12 @@ async function main(): Promise<void> {
       process.exitCode = 1;
       return;
     }
-    await runGenerate(cwd, { force, onlyLocales });
+    try {
+      await runGenerate(cwd, { force, onlyLocales });
+    } catch (e) {
+      console.error(e instanceof Error ? e.message : e);
+      process.exitCode = 1;
+    }
     return;
   }
 
