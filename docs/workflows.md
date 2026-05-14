@@ -57,7 +57,7 @@ This package does **not** auto-write locale files from `missingKey` at runtime (
 
 ## Translator notes for `generate`
 
-Optional **`{catalogDir}/translator-notes.json`** is a key → string map read only by **`generate`** (not by i18next). Use it for UI or product context when calling the model. **`init`** / **`generate`** create `{}` when the file is missing. See [resource-contract.md](./resource-contract.md).
+Optional **`{localesDir}/translator-notes.json`** is a key → string map read only by **`generate`** (not by i18next). Use it for UI or product context when calling the model. **`init`** / **`generate`** create `{}` when the file is missing. See [resource-contract.md](./resource-contract.md).
 
 ---
 

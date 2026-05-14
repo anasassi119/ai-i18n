@@ -1,7 +1,7 @@
 import { access, mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import type { ResourceFormat } from "./config.js";
+import { loadConfig } from "./config.js";
 import { localeCatalogPathFromParts } from "./catalogLayout.js";
 import { ensureTranslatorNotesFile } from "./translatorNotes.js";
 
@@ -18,18 +18,29 @@ export async function defaultConfigTemplatePath(): Promise<string> {
   return path.join(packageRootFromCli(), "templates", "ai-i18n.config.default.json");
 }
 
-/** Ensures `{catalogDir}/{defaultLocale}.json` exists (empty `{}`) when missing; reads paths from config. */
+/**
+ * Ensures `translator-notes.json` and an empty default-locale catalog when missing.
+ * Does not create or modify the `i18n` module — that file must exist for `loadConfig` / CLI commands.
+ *
+ * After a fresh `init`, `loadConfig` may fail until the user points `"i18n"` at their real file;
+ * in that case we still scaffold flat `{localesDir}/en.json` (same as postinstall).
+ */
 export async function bootstrapDefaultCatalogIfNeeded(
   cwd: string,
   configPath: string,
   silent?: boolean,
 ): Promise<boolean> {
+  if (path.resolve(cwd, "ai-i18n.config.json") !== path.resolve(configPath)) {
+    return false;
+  }
+
   let raw: string;
   try {
     raw = await readFile(configPath, "utf8");
   } catch {
     return false;
   }
+
   let parsed: unknown;
   try {
     parsed = JSON.parse(raw);
@@ -38,28 +49,24 @@ export async function bootstrapDefaultCatalogIfNeeded(
   }
   if (!parsed || typeof parsed !== "object") return false;
   const o = parsed as Record<string, unknown>;
-  const catalogDir = typeof o.catalogDir === "string" ? o.catalogDir : "locales";
-  const defaultLocale = typeof o.defaultLocale === "string" ? o.defaultLocale : "en";
-  const resourceFormatRaw = o.resourceFormat;
-  let resourceFormat: ResourceFormat | undefined;
-  if (resourceFormatRaw === "flat" || resourceFormatRaw === "i18next-namespace") {
-    resourceFormat = resourceFormatRaw;
-  } else if (resourceFormatRaw !== undefined && resourceFormatRaw !== null) {
-    return false;
+  const localesDir = typeof o.localesDir === "string" ? o.localesDir : "locales";
+
+  await ensureTranslatorNotesFile(cwd, localesDir);
+
+  let fileAbs: string;
+  try {
+    const { config } = await loadConfig(cwd);
+    fileAbs = localeCatalogPathFromParts(
+      cwd,
+      config.localesDir,
+      config.defaultLocale,
+      config.resourceFormat,
+      config.resourceFormat === "i18next-namespace" ? config.namespace : undefined,
+    );
+  } catch {
+    fileAbs = path.join(path.resolve(cwd, localesDir), "en.json");
   }
-  const namespaceRaw = o.namespace;
-  const namespace =
-    typeof namespaceRaw === "string" && namespaceRaw.trim() !== "" ? namespaceRaw.trim() : undefined;
 
-  await ensureTranslatorNotesFile(cwd, catalogDir);
-
-  const fileAbs = localeCatalogPathFromParts(
-    cwd,
-    catalogDir,
-    defaultLocale,
-    resourceFormat,
-    resourceFormat === "i18next-namespace" ? namespace : undefined,
-  );
   if (await fileExists(fileAbs)) return false;
   await mkdir(path.dirname(fileAbs), { recursive: true });
   await writeFile(fileAbs, "{}\n", "utf8");
@@ -96,7 +103,9 @@ export async function runInit(
   }
 
   if (!options.silent) {
-    console.log("[ai-i18n] Created ai-i18n.config.json — edit sourceGlobs, locales, and provider.");
+    console.log(
+      "[ai-i18n] Created ai-i18n.config.json — set `i18n` to your i18next init module, then edit sourceGlobs and provider.",
+    );
   }
   return "created";
 }

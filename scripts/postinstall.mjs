@@ -121,7 +121,7 @@ async function findConsumerRoot(installedAt) {
   return null;
 }
 
-/** Create default locale catalog as `{}` when missing (same rules as `ai-i18n init`). */
+/** First-install bootstrap: flat `{localesDir}/en.json` + translator-notes (no `i18n` file — user supplies that). */
 async function bootstrapDefaultCatalog(root, configPath) {
   let raw;
   try {
@@ -136,28 +136,10 @@ async function bootstrapDefaultCatalog(root, configPath) {
     return;
   }
   if (!parsed || typeof parsed !== "object") return;
-  const catalogDir = typeof parsed.catalogDir === "string" ? parsed.catalogDir : "locales";
-  const defaultLocale = typeof parsed.defaultLocale === "string" ? parsed.defaultLocale : "en";
-  const rf = parsed.resourceFormat;
-  let resourceFormat;
-  if (rf === "flat" || rf === "i18next-namespace") {
-    resourceFormat = rf;
-  } else {
-    resourceFormat = undefined;
-  }
-  const nsRaw = parsed.namespace;
-  const namespace =
-    typeof nsRaw === "string" && nsRaw.trim() !== "" ? nsRaw.trim() : undefined;
-
-  const base = path.resolve(root, catalogDir);
-  const fmt = resourceFormat ?? "flat";
-  let fileAbs;
-  if (fmt === "flat") {
-    fileAbs = path.join(base, `${defaultLocale}.json`);
-  } else {
-    const n = namespace && namespace.length > 0 ? namespace : "translation";
-    fileAbs = path.join(base, defaultLocale, `${n}.json`);
-  }
+  const localesDir = typeof parsed.localesDir === "string" ? parsed.localesDir : "locales";
+  const defaultLocale = "en";
+  const base = path.resolve(root, localesDir);
+  const fileAbs = path.join(base, `${defaultLocale}.json`);
   const notesAbs = path.join(base, "translator-notes.json");
   if (!(await exists(notesAbs))) {
     await mkdir(path.dirname(notesAbs), { recursive: true });
@@ -210,7 +192,7 @@ async function main() {
   const body = await readFile(template, "utf8");
   await writeFile(target, body, "utf8");
   await bootstrapDefaultCatalog(root, target);
-  console.log("[ai-i18n] Created ai-i18n.config.json (postinstall) — edit sourceGlobs and locales as needed.");
+  console.log("[ai-i18n] Created ai-i18n.config.json (postinstall) — edit `i18n`, sourceGlobs, and provider.");
   return true;
 }
 

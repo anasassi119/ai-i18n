@@ -4,6 +4,23 @@ import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { runDiff } from "./diff.js";
 
+const flatI18n = `
+const i18next = { init(_o: Record<string, unknown>) {} };
+i18next.init({ lng: "en", supportedLngs: ["en", "fr"], resources: {} });
+`;
+
+const nsI18n = `
+const i18next = { init(_o: Record<string, unknown>) {} };
+i18next.init({
+  lng: "en",
+  supportedLngs: ["en", "fr"],
+  resources: {
+    en: { translation: {} },
+    fr: { translation: {} },
+  },
+});
+`;
+
 async function writeLayout(
   dir: string,
   opts: {
@@ -14,13 +31,13 @@ async function writeLayout(
 ) {
   await mkdir(path.join(dir, "src"), { recursive: true });
   await mkdir(path.join(dir, "locales"), { recursive: true });
+  await writeFile(path.join(dir, "src", "i18n.ts"), flatI18n, "utf8");
   await writeFile(
     path.join(dir, "ai-i18n.config.json"),
     JSON.stringify({
       sourceGlobs: ["src/**/*.tsx"],
-      defaultLocale: "en",
-      locales: ["fr"],
-      catalogDir: "locales",
+      localesDir: "locales",
+      i18n: "src/i18n.ts",
       provider: "openai",
     }),
     "utf8",
@@ -46,16 +63,14 @@ async function writeLayoutI18nextNamespace(
 ) {
   await mkdir(path.join(dir, "src"), { recursive: true });
   await mkdir(path.join(dir, "locales", "en"), { recursive: true });
+  await writeFile(path.join(dir, "src", "i18n.ts"), nsI18n, "utf8");
   await writeFile(
     path.join(dir, "ai-i18n.config.json"),
     JSON.stringify({
       sourceGlobs: ["src/**/*.tsx"],
-      defaultLocale: "en",
-      locales: ["fr"],
-      catalogDir: "locales",
+      localesDir: "locales",
+      i18n: "src/i18n.ts",
       provider: "openai",
-      resourceFormat: "i18next-namespace",
-      namespace: "translation",
     }),
     "utf8",
   );

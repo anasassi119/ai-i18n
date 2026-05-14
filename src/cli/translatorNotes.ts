@@ -3,13 +3,13 @@ import path from "node:path";
 
 const FILE_NAME = "translator-notes.json";
 
-export function translatorNotesPath(cwd: string, catalogDir: string): string {
-  return path.join(path.resolve(cwd, catalogDir), FILE_NAME);
+export function translatorNotesPath(cwd: string, localesDir: string): string {
+  return path.join(path.resolve(cwd, localesDir), FILE_NAME);
 }
 
-/** Creates `{catalogDir}/translator-notes.json` as `{}` when missing. */
-export async function ensureTranslatorNotesFile(cwd: string, catalogDir: string): Promise<void> {
-  const p = translatorNotesPath(cwd, catalogDir);
+/** Creates `{localesDir}/translator-notes.json` as `{}` when missing. */
+export async function ensureTranslatorNotesFile(cwd: string, localesDir: string): Promise<void> {
+  const p = translatorNotesPath(cwd, localesDir);
   try {
     await access(p);
   } catch {
@@ -22,8 +22,8 @@ export async function ensureTranslatorNotesFile(cwd: string, catalogDir: string)
  * Loads translator context keyed by message id (same keys as `t('…')` / default catalog).
  * File must be a JSON object with string values only.
  */
-export async function loadTranslatorNotes(cwd: string, catalogDir: string): Promise<Record<string, string>> {
-  const p = translatorNotesPath(cwd, catalogDir);
+export async function loadTranslatorNotes(cwd: string, localesDir: string): Promise<Record<string, string>> {
+  const p = translatorNotesPath(cwd, localesDir);
   let raw: string;
   try {
     raw = await readFile(p, "utf8");

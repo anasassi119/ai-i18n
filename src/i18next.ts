@@ -26,7 +26,7 @@ export type NamespaceCatalogFileEntry = {
 
 /**
  * Builds `i18next.init({ resources })` from per-file namespace catalogs
- * (e.g. JSON loaded from `{catalogDir}/{lng}/{ns}.json` when using `resourceFormat: "i18next-namespace"`).
+ * (e.g. JSON loaded from `{localesDir}/{lng}/{ns}.json` when using `resourceFormat: "i18next-namespace"`).
  * Same-language, same-namespace entries are shallow-merged in array order.
  */
 export function namespaceCatalogFilesToResources(entries: NamespaceCatalogFileEntry[]): Resource {

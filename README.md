@@ -37,7 +37,7 @@ npm install openai
 npm install @anthropic-ai/sdk
 ```
 
-After `npm install ai-i18n`, **postinstall** may create `ai-i18n.config.json`, an **empty default locale catalog**, **`{catalogDir}/translator-notes.json`** as `{}`, and print a short setup reminder (unless `AI_I18N_SKIP_INIT=1`). Details: [docs/install-and-postinstall.md](./docs/install-and-postinstall.md).
+After `npm install ai-i18n`, **postinstall** may create `ai-i18n.config.json`, an **empty default locale catalog** under **`localesDir`** (default `locales/en.json` on first install), **`{localesDir}/translator-notes.json`** as `{}`, and print a short setup reminder (unless `AI_I18N_SKIP_INIT=1`). It does **not** create your **`i18n`** module — set `"i18n"` to the path of your existing i18next init file. Details: [docs/install-and-postinstall.md](./docs/install-and-postinstall.md).
 
 ---
 
@@ -60,7 +60,7 @@ At runtime you use **`react-i18next`** `t` — the **scanner** only needs the st
 
 ### 1b. Optional translator notes (not in `t()`)
 
-Edit **`locales/translator-notes.json`** (or **`{catalogDir}/translator-notes.json`**) — a flat map of message key → note for the model. **`init` / `generate`** create `{}` when the file is missing. See [docs/resource-contract.md](./docs/resource-contract.md).
+Edit **`locales/translator-notes.json`** (or **`{localesDir}/translator-notes.json`**) — a flat map of message key → note for the model. **`init` / `generate`** create `{}` when the file is missing. See [docs/resource-contract.md](./docs/resource-contract.md).
 
 ```json
 {
@@ -75,16 +75,17 @@ Edit **`locales/translator-notes.json`** (or **`{catalogDir}/translator-notes.js
 ```json
 {
   "sourceGlobs": ["src/**/*.{tsx,ts,jsx,js}"],
-  "defaultLocale": "en",
-  "locales": ["fr"],
-  "catalogDir": "locales",
+  "localesDir": "locales",
+  "i18n": "src/i18n.ts",
   "cacheDir": ".ai-i18n",
   "provider": "openai",
   "model": "gpt-5-mini"
 }
 ```
 
-Optional: set `"resourceFormat": "i18next-namespace"` (and `"namespace"` if not `translation`) so catalogs live under `locales/{locale}/{namespace}.json` — see [docs/resource-contract.md](./docs/resource-contract.md).
+The CLI **parses `i18n`** (static analysis) to derive **`defaultLocale`**, **`locales`**, and usually **`resourceFormat`** / **`namespace`**. You maintain that module yourself (or point `"i18n"` at wherever you already call `i18next.init`). You can override any derived fields in JSON when needed — see [docs/configuration.md](./docs/configuration.md).
+
+Optional: set `"resourceFormat": "i18next-namespace"` (and `"namespace"` if not `translation`) when inference does not match your layout — see [docs/resource-contract.md](./docs/resource-contract.md).
 
 ### 3. Default locale catalog (flat JSON)
 
@@ -177,7 +178,7 @@ npx ai-i18n diff              # report drift; exits 1 if anything is wrong (for 
 
 ## Features (summary)
 
-- **Scan** — `t('literalKey', …)` string keys only; optional **`translator-notes.json`** for `generate`.
+- **Scan** — `t('literalKey', …)` string keys only; optional **`translator-notes.json`** for `generate`; **`i18n`** module for locale list inference.
 - **Generate / diff** — merge from default locale, prune removed keys, `.ai-i18n` cache.
 - **Providers** — `openai` (default) or `anthropic`; default OpenAI model **`gpt-5-mini`**.
 - **Postinstall** — optional scaffold + configure reminder.
@@ -191,7 +192,7 @@ npx ai-i18n diff              # report drift; exits 1 if anything is wrong (for 
 |-----|----------|
 | [docs/i18next.md](./docs/i18next.md) | Wiring catalogs into i18next, `import.meta.glob` |
 | [docs/resource-contract.md](./docs/resource-contract.md) | File layout, `translator-notes.json`, plurals / ICU stance |
-| [docs/configuration.md](./docs/configuration.md) | Every `ai-i18n.config.json` field |
+| [docs/configuration.md](./docs/configuration.md) | Slim `ai-i18n.config.json`, `i18n` path, optional overrides |
 | [docs/cli-reference.md](./docs/cli-reference.md) | Scanner rules, catalog sync |
 | [docs/workflows.md](./docs/workflows.md) | CI with `diff`, `missingKey` dev recipe |
 | [docs/environment.md](./docs/environment.md) | API keys, PowerShell |
@@ -216,7 +217,7 @@ No. **`ai-i18n`** only reads your source and JSON catalogs and calls your chosen
 The scanner only sees **`t('stringLiteral', …)`** — the callee must be named **`t`**, and the first argument must be a **string literal**. Dynamic keys, variables, or template literals are ignored. Add the key and source string to the **default locale** catalog file, then run **`generate`**.
 
 **What is `translator-notes.json` for?**  
-Optional **`{catalogDir}/translator-notes.json`** maps message keys to short notes for the translation model. It is **not** loaded by i18next; your runtime **`t()`** stays standard. See [resource-contract.md](./docs/resource-contract.md).
+Optional **`{localesDir}/translator-notes.json`** maps message keys to short notes for the translation model. It is **not** loaded by i18next; your runtime **`t()`** stays standard. See [resource-contract.md](./docs/resource-contract.md).
 
 **What is the difference between `flat` and `i18next-namespace`?**  
 **`flat`** (default): one file per locale, e.g. `locales/en.json`. **`i18next-namespace`**: one namespace file per locale, e.g. `locales/en/translation.json`. The JSON inside is still a flat `key → string` map. Configure in [`ai-i18n.config.json`](./docs/configuration.md); **`diff`** and **`generate`** use the same paths.
@@ -251,9 +252,15 @@ Typically **`npx ai-i18n diff`** (non-zero exit on drift). It respects **`resour
 
 ---
 
+## Upgrading from 3.x
+
+Version **4** slims **`ai-i18n.config.json`**: rename **`catalogDir`** → **`localesDir`**, add **`i18n`** (path to the module that calls **`i18next.init({...})`**-style options), and remove **`defaultLocale`** / **`locales`** from the file unless you want explicit overrides. The CLI derives those from string-literal **`lng`**, **`supportedLngs`**, **`fallbackLng`**, and **`resources`** in that file. **`init`** / postinstall **do not** create that module — point **`i18n`** at your real file. See [docs/configuration.md](./docs/configuration.md).
+
+---
+
 ## Upgrading from 2.x
 
-Version **3** removes inline **`hint`** in source. Move any notes into **`{catalogDir}/translator-notes.json`** as a string map keyed by message id (see [resource-contract.md](./docs/resource-contract.md)).
+Version **3** removes inline **`hint`** in source. Move any notes into **`{localesDir}/translator-notes.json`** as a string map keyed by message id (see [resource-contract.md](./docs/resource-contract.md)).
 
 ---
 

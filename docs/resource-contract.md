@@ -18,9 +18,9 @@ This document is the **single contract** for how **ai-i18n** expects locale file
 
 |------------------|----------------|-------|
 
-| **`flat`** (default when omitted) | **`{catalogDir}/{locale}.json`** | Original layout; unchanged if you do not add `resourceFormat` to config. |
+| **`flat`** (default when inferred / omitted) | **`{localesDir}/{locale}.json`** | Original layout. |
 
-| **`i18next-namespace`** | **`{catalogDir}/{locale}/{namespace}.json`** | Matches a common i18next folder layout (e.g. `locales/en/translation.json`). Same **flat** `Record<string, string>` inside each JSON file. |
+| **`i18next-namespace`** | **`{localesDir}/{locale}/{namespace}.json`** | Matches a common i18next folder layout (e.g. `locales/en/translation.json`). Same **flat** `Record<string, string>` inside each JSON file. |
 
 
 
@@ -36,7 +36,7 @@ Set optional **`namespace`** when using `i18next-namespace` (default **`translat
 
 # flat (default)
 
-catalogDir/
+localesDir/
 
   translator-notes.json
 
@@ -48,7 +48,7 @@ catalogDir/
 
 # i18next-namespace (example: namespace "translation")
 
-catalogDir/
+localesDir/
 
   translator-notes.json
 
@@ -78,15 +78,15 @@ catalogDir/
 
 | **Config** | `ai-i18n.config.json` at the **project root** (where you run the CLI). See [configuration.md](./configuration.md). |
 
-| **Catalog directory** | `catalogDir` (default from template: `locales/`), resolved relative to the project root. |
+| **Locale directory** | `localesDir` (default from template: `locales/`), resolved relative to the project root. |
 
-| **Files** | Per `resourceFormat` table above, plus optional **`{catalogDir}/translator-notes.json`**. |
+| **Files** | Per `resourceFormat` table above, plus optional **`{localesDir}/translator-notes.json`**. |
 
 | **Shape** | Each catalog JSON file is a **flat** object: **string keys → string values** only. Values are message templates (e.g. with `{{name}}` for i18next interpolation). Non-string entries in the default catalog are ignored for generation key-set purposes. |
 
 
 
-**Default locale** (`defaultLocale` in config) is the **source of truth** for which keys exist. **`generate`** fills target locale files from that set; **`diff`** uses the same rules and **layout-aware paths**.
+**Default locale** (derived from the **`i18n`** module’s `lng` / locale list when possible, or overridden in config) is the **source of truth** for which keys exist. **`generate`** fills target locale files from that set; **`diff`** uses the same rules and **layout-aware paths**.
 
 
 
@@ -142,7 +142,7 @@ Compatibility targets for later roadmap items:
 
 |------|--------|
 
-| **Purpose** | Optional **key → string** map at **`{catalogDir}/translator-notes.json`** gives OpenAI / Anthropic extra UI or product context when translating. Same keys as message ids (`t('welcome')` ↔ `"welcome"`). |
+| **Purpose** | Optional **key → string** map at **`{localesDir}/translator-notes.json`** gives OpenAI / Anthropic extra UI or product context when translating. Same keys as message ids (`t('welcome')` ↔ `"welcome"`). |
 
 | **Runtime** | **Not** read by i18next. Your app only loads locale catalogs; keep using standard **`t('key', { … })`** without any CLI-specific options. |
 
@@ -184,7 +184,7 @@ i18next concepts: [namespaces](https://www.i18next.com/principles/namespaces), [
 
 
 
-- [configuration.md](./configuration.md) — `catalogDir`, `translator-notes.json`, `locales`, `defaultLocale`, `resourceFormat`
+- [configuration.md](./configuration.md) — `localesDir`, `i18n`, `translator-notes.json`, optional overrides, `resourceFormat`
 
 - [cli-reference.md](./cli-reference.md) — scanner, `generate`, `diff`
 

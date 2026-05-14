@@ -55,7 +55,7 @@ void i18next.use(initReactI18next).init({
 
 ### Option C — namespace files on disk (`i18next-namespace`)
 
-If each locale uses **`{catalogDir}/{lng}/{namespace}.json`** (see config `resourceFormat`), load the JSON in Node or the bundler and merge into `resources`:
+If each locale uses **`{localesDir}/{lng}/{namespace}.json`** (see config `resourceFormat`), load the JSON in Node or the bundler and merge into `resources`:
 
 ```ts
 import i18next from "i18next";

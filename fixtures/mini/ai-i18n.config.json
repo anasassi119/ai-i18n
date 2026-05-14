@@ -1,8 +1,7 @@
 {
   "sourceGlobs": ["fixture/**/*.tsx"],
-  "defaultLocale": "en",
-  "locales": ["fr", "ar", "es"],
-  "catalogDir": "locales",
+  "localesDir": "locales",
+  "i18n": "src/i18n.ts",
   "cacheDir": ".ai-i18n",
   "provider": "openai",
   "model": "gpt-5-mini"

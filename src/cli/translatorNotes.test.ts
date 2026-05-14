@@ -9,7 +9,7 @@ import {
 } from "./translatorNotes.js";
 
 describe("translatorNotes", () => {
-  it("translatorNotesPath resolves under catalogDir", () => {
+  it("translatorNotesPath resolves under localesDir", () => {
     const p = translatorNotesPath("/app", "locales");
     expect(p.endsWith(path.join("locales", "translator-notes.json"))).toBe(true);
   });

@@ -24,7 +24,7 @@ Do **not** use `npm ai-i18n` (invalid). Prefer **`npx ai-i18n …`**.
 ## Scanner rules (strict)
 
 - Only **`t('literalKey', …?)`** is extracted: the callee must be the identifier **`t`**, first argument a **string literal** key. The second argument is **not** inspected by the CLI (use standard i18next options only).
-- Optional translator context for **`generate`** lives in **`{catalogDir}/translator-notes.json`**, not in source. See [resource-contract.md](./resource-contract.md).
+- Optional translator context for **`generate`** lives in **`{localesDir}/translator-notes.json`**, not in source. See [resource-contract.md](./resource-contract.md).
 
 ## Catalog sync (default → targets)
 

@@ -20,14 +20,27 @@ import { runGenerateWithConfig } from "./generate.js";
 function baseConfig(overrides: Partial<AitConfig> = {}): AitConfig {
   return {
     sourceGlobs: ["src/**/*.tsx"],
+    localesDir: "locales",
+    i18n: "src/i18n.ts",
     defaultLocale: "en",
     locales: ["fr"],
-    catalogDir: "locales",
     cacheDir: ".ai-i18n",
     provider: "openai",
     ...overrides,
   };
 }
+
+const nsI18nForGenerate = `
+const i18next = { init(_o: Record<string, unknown>) {} };
+i18next.init({
+  lng: "en",
+  supportedLngs: ["en", "fr"],
+  resources: {
+    en: { translation: {} },
+    fr: { translation: {} },
+  },
+});
+`;
 
 describe("runGenerateWithConfig (i18next-namespace layout)", () => {
   let dir: string;
@@ -48,6 +61,12 @@ describe("runGenerateWithConfig (i18next-namespace layout)", () => {
     await writeFile(
       path.join(dir, "locales", "en", "translation.json"),
       JSON.stringify({ welcome: "Hello" }, null, 2) + "\n",
+      "utf8",
+    );
+
+    await writeFile(
+      path.join(dir, "src", "i18n.ts"),
+      nsI18nForGenerate,
       "utf8",
     );
 

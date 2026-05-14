@@ -61,8 +61,8 @@ export async function runGenerateWithConfig(
   force: boolean,
 ): Promise<void> {
   const translator = resolveTranslator(config);
-  await ensureTranslatorNotesFile(cwd, config.catalogDir);
-  const translatorNotes = await loadTranslatorNotes(cwd, config.catalogDir);
+  await ensureTranslatorNotesFile(cwd, config.localesDir);
+  const translatorNotes = await loadTranslatorNotes(cwd, config.localesDir);
 
   const defaultPath = localeCatalogPath(cwd, config, config.defaultLocale);
   const defaultCatalog = await readCatalog(defaultPath);

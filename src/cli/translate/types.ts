@@ -1,7 +1,7 @@
 export interface TranslateEntry {
   key: string;
   source: string;
-  /** Optional UI/context note for the model from `{catalogDir}/translator-notes.json`. */
+  /** Optional UI/context note for the model from `{localesDir}/translator-notes.json`. */
   translatorNote?: string;
 }
 
