@@ -28,17 +28,16 @@ function discoveryToWrittenFields(d: Awaited<ReturnType<typeof discoverInit>>): 
     i18n: d.i18n,
     localesDir: d.localesDir,
     sourceGlobs: d.sourceGlobs,
+    /** Always persist so loadConfig does not override with i18n AST (nested `resources` → i18next-namespace). */
+    resourceFormat: d.resourceFormat,
+    localeShape: d.localeShape,
   };
   if (d.resourceFormat !== "flat") {
-    o.resourceFormat = d.resourceFormat;
-  }
-  if (d.namespaces !== undefined && d.namespaces.length > 0) {
-    o.namespaces = d.namespaces;
-  } else if (d.namespace !== undefined && d.namespace.length > 0) {
-    o.namespace = d.namespace;
-  }
-  if (d.localeShape === "nested") {
-    o.localeShape = "nested";
+    if (d.namespaces !== undefined && d.namespaces.length > 0) {
+      o.namespaces = d.namespaces;
+    } else if (d.namespace !== undefined && d.namespace.length > 0) {
+      o.namespace = d.namespace;
+    }
   }
   return o;
 }

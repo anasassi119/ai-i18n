@@ -199,10 +199,12 @@ export async function runInitInteractive(
       sourceGlobs,
       defaultLocale: layout.defaultLocale,
       locales: layout.locales.length > 0 ? layout.locales : ["en"],
-      ...(layout.resourceFormat !== "flat" ? { resourceFormat: layout.resourceFormat } : {}),
+      /** Always set so loadConfig does not re-derive `resourceFormat` from `i18n` AST (nested `resources` → i18next-namespace would override flat on-disk layout). */
+      resourceFormat: layout.resourceFormat,
       ...(layout.namespace !== undefined && layout.namespaces === undefined ? { namespace: layout.namespace } : {}),
       ...(layout.namespaces !== undefined ? { namespaces: layout.namespaces } : {}),
-      ...(layout.localeShape === "nested" ? { localeShape: "nested" } : {}),
+      /** Always set when inferred nested so JSON stays self-consistent with disk; flat is the default when omitted in AitConfig but writing it avoids ambiguity. */
+      localeShape: layout.localeShape,
     };
     if (i18nRel) merged.i18n = i18nRel;
     else delete merged.i18n;
