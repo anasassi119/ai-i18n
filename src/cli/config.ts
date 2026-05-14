@@ -11,7 +11,7 @@ export interface AitConfig {
   defaultLocale: string;
   locales: string[];
   catalogDir: string;
-  /** Where `.ai-i18n-cache.json` and `.ai-i18n-hints.json` are stored (default: ".ai-i18n"). */
+  /** Where `.ai-i18n-cache.json` is stored (default: ".ai-i18n"). */
   cacheDir: string;
   provider: Provider;
   model?: string;

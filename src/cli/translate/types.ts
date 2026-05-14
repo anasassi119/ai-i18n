@@ -1,7 +1,8 @@
 export interface TranslateEntry {
   key: string;
   source: string;
-  hint?: string;
+  /** Optional UI/context note for the model from `{catalogDir}/translator-notes.json`. */
+  translatorNote?: string;
 }
 
 export interface TranslateBatchInput {

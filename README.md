@@ -10,7 +10,7 @@
 
 # ai-i18n
 
-**CLI** that scans **`t('key', { hint: '…' })`** in your source, keeps **locale JSON** in sync with **[i18next](https://www.i18next.com/)**, and fills missing translations with **OpenAI** or **Anthropic**. Runtime is **always i18next** (plus **react-i18next** in React apps).
+**CLI** that scans **`t('key')`** calls in your source, keeps **locale JSON** in sync with **[i18next](https://www.i18next.com/)**, and fills missing translations with **OpenAI** or **Anthropic**. Optional **`locales/translator-notes.json`** gives translators extra context without changing runtime `t()`. Runtime is **always i18next** (plus **react-i18next** in React apps).
 
 ---
 
@@ -19,7 +19,7 @@
 | You use | For |
 |---------|-----|
 | **i18next** + **react-i18next** | `useTranslation()`, `t()`, plurals, namespaces, loading, `Trans` |
-| **ai-i18n** | `init` / `generate` / `diff`, scanning keys + **hints**, AI providers, `.env` for API keys |
+| **ai-i18n** | `init` / `generate` / `diff`, scanning keys, optional **`translator-notes.json`**, AI providers, `.env` for API keys |
 | **`ai-i18n/i18next`** (optional) | `catalogsToI18nextResources` / `namespaceCatalogFilesToResources` → `i18next.init({ resources })` |
 
 ---
@@ -37,7 +37,7 @@ npm install openai
 npm install @anthropic-ai/sdk
 ```
 
-After `npm install ai-i18n`, **postinstall** may create `ai-i18n.config.json` plus an **empty default locale catalog** at the path implied by `resourceFormat` (default: `locales/en.json`) and print a short setup reminder (unless `AI_I18N_SKIP_INIT=1`). Details: [docs/install-and-postinstall.md](./docs/install-and-postinstall.md).
+After `npm install ai-i18n`, **postinstall** may create `ai-i18n.config.json`, an **empty default locale catalog**, **`{catalogDir}/translator-notes.json`** as `{}`, and print a short setup reminder (unless `AI_I18N_SKIP_INIT=1`). Details: [docs/install-and-postinstall.md](./docs/install-and-postinstall.md).
 
 ---
 
@@ -45,18 +45,28 @@ After `npm install ai-i18n`, **postinstall** may create `ai-i18n.config.json` pl
 
 ### 1. Source code the CLI can scan
 
-Callee must be named **`t`**, first argument a **string literal**. **`hint`** helps the translator; use a **string literal** so the CLI sees it.
+Callee must be named **`t`**, first argument a **string literal** key. Use normal i18next options in the second argument (e.g. `{{name}}` interpolation); the CLI does not read custom fields there.
 
 ```tsx
 // src/App.tsx
 declare function t(key: string, opts?: Record<string, unknown>): string;
 
 export function Greeting() {
-  return <p>{t("welcome", { name: "Ada", hint: "dashboard greeting above fold" })}</p>;
+  return <p>{t("welcome", { name: "Ada" })}</p>;
 }
 ```
 
-At runtime you use **`react-i18next`** `t` — the pattern above is what the **scanner** looks for.
+At runtime you use **`react-i18next`** `t` — the **scanner** only needs the string literal key.
+
+### 1b. Optional translator notes (not in `t()`)
+
+Edit **`locales/translator-notes.json`** (or **`{catalogDir}/translator-notes.json`**) — a flat map of message key → note for the model. **`init` / `generate`** create `{}` when the file is missing. See [docs/resource-contract.md](./docs/resource-contract.md).
+
+```json
+{
+  "welcome": "Dashboard greeting, above the fold"
+}
+```
 
 ### 2. Config at the project root
 
@@ -133,8 +143,6 @@ export function Greeting() {
 }
 ```
 
-Do **not** pass **`hint`** to runtime `t()` unless you strip it — i18next ignores it; see [docs/resource-contract.md](./docs/resource-contract.md).
-
 ### 7. Optional helper: build `resources` from objects
 
 ```ts
@@ -156,7 +164,7 @@ void i18next.use(initReactI18next).init({ resources, lng: "en", fallbackLng: "en
 ## CLI commands
 
 ```bash
-npx ai-i18n init              # create ai-i18n.config.json (+ empty default locale if missing)
+npx ai-i18n init              # create ai-i18n.config.json (+ default catalog and translator-notes if missing)
 npx ai-i18n init --force      # replace config from template
 npx ai-i18n generate          # translate / fill target locale files
 npx ai-i18n generate --force  # re-translate all keys from default catalog
@@ -169,7 +177,7 @@ npx ai-i18n diff              # report drift; exits 1 if anything is wrong (for 
 
 ## Features (summary)
 
-- **Scan** — `t('literalKey', …)` + string-literal **`hint`**.
+- **Scan** — `t('literalKey', …)` string keys only; optional **`translator-notes.json`** for `generate`.
 - **Generate / diff** — merge from default locale, prune removed keys, `.ai-i18n` cache.
 - **Providers** — `openai` (default) or `anthropic`; default OpenAI model **`gpt-5-mini`**.
 - **Postinstall** — optional scaffold + configure reminder.
@@ -182,7 +190,7 @@ npx ai-i18n diff              # report drift; exits 1 if anything is wrong (for 
 | Doc | Contents |
 |-----|----------|
 | [docs/i18next.md](./docs/i18next.md) | Wiring catalogs into i18next, `import.meta.glob` |
-| [docs/resource-contract.md](./docs/resource-contract.md) | File layout, plurals / ICU stance, `hint` rules |
+| [docs/resource-contract.md](./docs/resource-contract.md) | File layout, `translator-notes.json`, plurals / ICU stance |
 | [docs/configuration.md](./docs/configuration.md) | Every `ai-i18n.config.json` field |
 | [docs/cli-reference.md](./docs/cli-reference.md) | Scanner rules, catalog sync |
 | [docs/workflows.md](./docs/workflows.md) | CI with `diff`, `missingKey` dev recipe |
@@ -195,8 +203,7 @@ npx ai-i18n diff              # report drift; exits 1 if anything is wrong (for 
 ## Limitations
 
 - Scanner: **`t('stringLiteral', …)`** only — no dynamic or template-literal keys.
-- **`hint`**: string literal in source for CLI; not an i18next option at runtime.
-- **Output layout:** default **`resourceFormat: flat`** (`{locale}.json`); optional **`i18next-namespace`** (`{locale}/{namespace}.json`). Still **flat** `key → string` inside each JSON file; plural/ICU/nested resource shapes beyond that are **i18next-side** — see [docs/resource-contract.md](./docs/resource-contract.md).
+- **Output layout:** default **`resourceFormat: flat`** (`{locale}.json`); optional **`i18next-namespace`**. Still **flat** `key → string` inside each catalog JSON file; plural/ICU/nested resource shapes beyond that are **i18next-side** — see [docs/resource-contract.md](./docs/resource-contract.md).
 
 ---
 
@@ -208,8 +215,8 @@ No. **`ai-i18n`** only reads your source and JSON catalogs and calls your chosen
 **Why is a key missing from `generate` / `diff`?**  
 The scanner only sees **`t('stringLiteral', …)`** — the callee must be named **`t`**, and the first argument must be a **string literal**. Dynamic keys, variables, or template literals are ignored. Add the key and source string to the **default locale** catalog file, then run **`generate`**.
 
-**What is `hint` for?**  
-An optional **string literal** in the second argument (e.g. `t('welcome', { hint: '…' })`) gives translators UI context. It is **not** an i18next option; do not pass **`hint`** through to production **`t()`** unless you strip it. See [resource-contract.md](./docs/resource-contract.md).
+**What is `translator-notes.json` for?**  
+Optional **`{catalogDir}/translator-notes.json`** maps message keys to short notes for the translation model. It is **not** loaded by i18next; your runtime **`t()`** stays standard. See [resource-contract.md](./docs/resource-contract.md).
 
 **What is the difference between `flat` and `i18next-namespace`?**  
 **`flat`** (default): one file per locale, e.g. `locales/en.json`. **`i18next-namespace`**: one namespace file per locale, e.g. `locales/en/translation.json`. The JSON inside is still a flat `key → string` map. Configure in [`ai-i18n.config.json`](./docs/configuration.md); **`diff`** and **`generate`** use the same paths.
@@ -241,6 +248,12 @@ Typically **`npx ai-i18n diff`** (non-zero exit on drift). It respects **`resour
 ## License
 
 [MIT](./LICENSE)
+
+---
+
+## Upgrading from 2.x
+
+Version **3** removes inline **`hint`** in source. Move any notes into **`{catalogDir}/translator-notes.json`** as a string map keyed by message id (see [resource-contract.md](./docs/resource-contract.md)).
 
 ---
 

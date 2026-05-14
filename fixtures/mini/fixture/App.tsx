@@ -2,5 +2,5 @@
 declare function t(key: string, opts?: Record<string, unknown>): string;
 
 export function X() {
-  return <span>{t("welcome", { name: "x", hint: "greeting" })}</span>;
+  return <span>{t("welcome", { name: "x" })}</span>;
 }

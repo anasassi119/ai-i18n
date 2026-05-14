@@ -55,12 +55,9 @@ This package does **not** auto-write locale files from `missingKey` at runtime (
 
 ---
 
-## Hint hygiene
+## Translator notes for `generate`
 
-- Keep **`hint`** as a **string literal** so the CLI sees it (see [cli-reference.md](./cli-reference.md)).
-- Strip **`hint`** before calling `t` in production if you use a shared wrapper, or ensure production bundles tree-shake dev-only call sites.
-
-**Future (roadmap):** optional sidecar file (e.g. hints in `.ai-i18n` only) so `en.json` stays free of non-i18next fields — not implemented yet.
+Optional **`{catalogDir}/translator-notes.json`** is a key → string map read only by **`generate`** (not by i18next). Use it for UI or product context when calling the model. **`init`** / **`generate`** create `{}` when the file is missing. See [resource-contract.md](./resource-contract.md).
 
 ---
 

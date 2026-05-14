@@ -4,7 +4,7 @@ import type { AitConfig } from "./config.js";
 import { loadConfig } from "./config.js";
 import { localeCatalogPath } from "./catalogLayout.js";
 import { hashSource } from "./hash.js";
-import { scanSources, writeHintsFile } from "./scan.js";
+import { ensureTranslatorNotesFile, loadTranslatorNotes } from "./translatorNotes.js";
 import { resolveTranslator } from "./translate/factory.js";
 
 type Catalog = Record<string, string>;
@@ -61,8 +61,8 @@ export async function runGenerateWithConfig(
   force: boolean,
 ): Promise<void> {
   const translator = resolveTranslator(config);
-  const scan = await scanSources(cwd, config.sourceGlobs);
-  await writeHintsFile(path.resolve(cwd, config.cacheDir), scan.hints);
+  await ensureTranslatorNotesFile(cwd, config.catalogDir);
+  const translatorNotes = await loadTranslatorNotes(cwd, config.catalogDir);
 
   const defaultPath = localeCatalogPath(cwd, config, config.defaultLocale);
   const defaultCatalog = await readCatalog(defaultPath);
@@ -86,7 +86,7 @@ export async function runGenerateWithConfig(
 
     const orphans = Object.keys(existing).filter((k) => !defaultKeySet.has(k));
 
-    const work: { key: string; source: string; hint?: string }[] = [];
+    const work: { key: string; source: string; translatorNote?: string }[] = [];
     for (const key of defaultKeys) {
       const source = defaultCatalog[key] as string;
       const h = hashSource(source);
@@ -96,10 +96,11 @@ export async function runGenerateWithConfig(
         existing[key] === "" ||
         localeCache[key] !== h;
       if (needs) {
+        const note = translatorNotes[key];
         work.push({
           key,
           source,
-          hint: scan.hints[key],
+          ...(note !== undefined && note !== "" ? { translatorNote: note } : {}),
         });
       }
     }

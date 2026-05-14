@@ -20,7 +20,8 @@ Rules:
 - Preserve every placeholder exactly as in the source, e.g. {{name}}, {{count}} — do not translate inside braces.
 - "text" is the translation of the source string into the target locale.
 - Include one object per input entry, same "key" values as provided.
-- Do not add or remove keys from the input set.`;
+- Do not add or remove keys from the input set.
+- If an input entry includes optional "translatorNote", use it only as UI/context for disambiguation; "text" must still be the translation of "source" only.`;
 
 function parseModelJson(raw: string): TranslateBatchResult {
   let text = raw.trim();

@@ -42,7 +42,7 @@ describe("runGenerateWithConfig (i18next-namespace layout)", () => {
     await mkdir(path.join(dir, "locales", "en"), { recursive: true });
     await writeFile(
       path.join(dir, "src", "App.tsx"),
-      `declare function t(key: string, opts?: Record<string, unknown>): string;\nexport function X() { return <span>{t("welcome", { hint: "h" })}</span>; }\n`,
+      `declare function t(key: string, opts?: Record<string, unknown>): string;\nexport function X() { return <span>{t("welcome")}</span>; }\n`,
       "utf8",
     );
     await writeFile(

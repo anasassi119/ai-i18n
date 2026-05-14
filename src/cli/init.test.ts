@@ -16,6 +16,9 @@ describe("runInit", () => {
       const enRaw = await readFile(enPath, "utf8");
       expect(JSON.parse(enRaw)).toEqual({});
 
+      const tnRaw = await readFile(path.join(dir, "locales", "translator-notes.json"), "utf8");
+      expect(JSON.parse(tnRaw)).toEqual({});
+
       const r2 = await runInit(dir, { silent: true });
       expect(r2).toBe("skipped");
 
@@ -52,6 +55,8 @@ describe("bootstrapDefaultCatalogIfNeeded", () => {
       expect(created).toBe(true);
       const raw = await readFile(path.join(dir, "messages", "de.json"), "utf8");
       expect(JSON.parse(raw)).toEqual({});
+      const notesRaw = await readFile(path.join(dir, "messages", "translator-notes.json"), "utf8");
+      expect(JSON.parse(notesRaw)).toEqual({});
     } finally {
       await rm(dir, { recursive: true, force: true });
     }
@@ -79,6 +84,8 @@ describe("bootstrapDefaultCatalogIfNeeded", () => {
       expect(created).toBe(true);
       const raw = await readFile(path.join(dir, "locales", "en", "translation.json"), "utf8");
       expect(JSON.parse(raw)).toEqual({});
+      const notesRaw = await readFile(path.join(dir, "locales", "translator-notes.json"), "utf8");
+      expect(JSON.parse(notesRaw)).toEqual({});
     } finally {
       await rm(dir, { recursive: true, force: true });
     }

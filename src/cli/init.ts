@@ -3,6 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { ResourceFormat } from "./config.js";
 import { localeCatalogPathFromParts } from "./catalogLayout.js";
+import { ensureTranslatorNotesFile } from "./translatorNotes.js";
 
 function packageRootFromCli(): string {
   const here = path.dirname(fileURLToPath(import.meta.url));
@@ -49,6 +50,8 @@ export async function bootstrapDefaultCatalogIfNeeded(
   const namespaceRaw = o.namespace;
   const namespace =
     typeof namespaceRaw === "string" && namespaceRaw.trim() !== "" ? namespaceRaw.trim() : undefined;
+
+  await ensureTranslatorNotesFile(cwd, catalogDir);
 
   const fileAbs = localeCatalogPathFromParts(
     cwd,

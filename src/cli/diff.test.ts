@@ -27,7 +27,7 @@ async function writeLayout(
   );
   await writeFile(
     path.join(dir, "src", "App.tsx"),
-    `declare function t(key: string, opts?: Record<string, unknown>): string;\nexport function X() { return <span>{t("${opts.appKey}", { hint: "h" })}</span>; }\n`,
+    `declare function t(key: string, opts?: Record<string, unknown>): string;\nexport function X() { return <span>{t("${opts.appKey}")}</span>; }\n`,
     "utf8",
   );
   await writeFile(path.join(dir, "locales", "en.json"), JSON.stringify(opts.enKeys, null, 2) + "\n", "utf8");
@@ -61,7 +61,7 @@ async function writeLayoutI18nextNamespace(
   );
   await writeFile(
     path.join(dir, "src", "App.tsx"),
-    `declare function t(key: string, opts?: Record<string, unknown>): string;\nexport function X() { return <span>{t("${opts.appKey}", { hint: "h" })}</span>; }\n`,
+    `declare function t(key: string, opts?: Record<string, unknown>): string;\nexport function X() { return <span>{t("${opts.appKey}")}</span>; }\n`,
     "utf8",
   );
   await writeFile(

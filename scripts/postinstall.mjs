@@ -158,6 +158,13 @@ async function bootstrapDefaultCatalog(root, configPath) {
     const n = namespace && namespace.length > 0 ? namespace : "translation";
     fileAbs = path.join(base, defaultLocale, `${n}.json`);
   }
+  const notesAbs = path.join(base, "translator-notes.json");
+  if (!(await exists(notesAbs))) {
+    await mkdir(path.dirname(notesAbs), { recursive: true });
+    await writeFile(notesAbs, "{}\n", "utf8");
+    console.log(`[ai-i18n] Created ${path.relative(root, notesAbs)} (translator notes sidecar).`);
+  }
+
   if (await exists(fileAbs)) return;
   await mkdir(path.dirname(fileAbs), { recursive: true });
   await writeFile(fileAbs, "{}\n", "utf8");

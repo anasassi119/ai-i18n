@@ -2,7 +2,7 @@
 
 **ai-i18n** fills **JSON locale files** on disk. **i18next** (and usually **react-i18next**) loads them at runtime. **`npm install ai-i18n` does not install i18next** — run `npm install i18next react-i18next` (and **`openai`** or **`@anthropic-ai/sdk`** per your `provider`) in your application.
 
-**Contract:** on-disk layout (`resourceFormat`, default flat) and plural/hint rules: [resource-contract.md](./resource-contract.md). **CI / `missingKey`:** [workflows.md](./workflows.md).
+**Contract:** on-disk layout (`resourceFormat`, default flat), **`translator-notes.json`**, and plural rules: [resource-contract.md](./resource-contract.md). **CI / `missingKey`:** [workflows.md](./workflows.md).
 
 ## 1. Generate catalogs
 
@@ -11,7 +11,7 @@ npx ai-i18n init
 npx ai-i18n generate
 ```
 
-You get flat key → string maps per file. With default **`resourceFormat`** that is `locales/en.json`, `locales/fr.json`. With **`resourceFormat`: `i18next-namespace`**, files are e.g. `locales/en/translation.json` — still flat JSON inside each file, aligned with a single i18next namespace per file.
+You get flat key → string maps per locale file, plus an optional **`translator-notes.json`** in the same folder for the CLI only (see [resource-contract.md](./resource-contract.md)).
 
 ## 2. Load into i18next
 
@@ -85,7 +85,7 @@ export function Welcome() {
 }
 ```
 
-Use **`hint` only for the CLI** (string literal in source). It is not an i18next option; do not pass `hint` to `t()` at runtime unless you strip it yourself.
+Runtime **`t()`** uses only standard i18next options; translator context belongs in **`translator-notes.json`**, not in extra props on `t()`. See [resource-contract.md](./resource-contract.md).
 
 ## Versions
 

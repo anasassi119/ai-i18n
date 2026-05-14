@@ -12,7 +12,8 @@ function chunk<T>(arr: T[], size: number): T[][] {
 
 const SYSTEM = `You are a professional UI translator. Reply with ONLY valid JSON (no markdown) in this exact shape:
 {"translations":[{"key":"string","text":"string"}]}
-Preserve placeholders like {{name}} exactly. Include every input key once.`;
+Preserve placeholders like {{name}} exactly. Include every input key once.
+If an entry has optional "translatorNote", use it only as context; translate the "source" string into "text".`;
 
 function parseModelJson(raw: string): TranslateBatchResult {
   let text = raw.trim();
