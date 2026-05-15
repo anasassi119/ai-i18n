@@ -1,6 +1,6 @@
 {
   "name": "ai-i18n",
-  "version": "4.5.2",
+  "version": "4.5.3",
   "description": "CLI for AI-assisted translation of i18next locale JSON, generate and diff catalogs (OpenAI / Anthropic).",
   "type": "module",
   "exports": {
@@ -8,6 +8,10 @@
       "types": "./dist/i18next.d.ts",
       "import": "./dist/i18next.js"
     }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/anasassi119/ai-i18n.git"
   },
   "bin": {
     "ai-i18n": "dist/cli.js"
