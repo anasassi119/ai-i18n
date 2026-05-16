@@ -5,6 +5,21 @@ import { extractI18nInitFromFile } from "./i18nInitExtract.js";
 
 export type Provider = "openai" | "anthropic";
 
+/** Default keys per translation API request when `batchSize` is omitted from config. */
+export const DEFAULT_BATCH_SIZE = 40;
+
+const MAX_BATCH_SIZE = 100;
+
+function parseBatchSize(raw: unknown): number {
+  if (raw === undefined || raw === null) return DEFAULT_BATCH_SIZE;
+  if (typeof raw !== "number" || !Number.isInteger(raw) || raw < 1 || raw > MAX_BATCH_SIZE) {
+    throw new Error(
+      `ai-i18n.config.json: batchSize must be an integer from 1 to ${MAX_BATCH_SIZE}`,
+    );
+  }
+  return raw;
+}
+
 /** How locale files are laid out under `localesDir`. Default: `flat`. */
 export type ResourceFormat = "flat" | "i18next-namespace";
 
@@ -78,6 +93,8 @@ export interface AitConfig {
   locales: string[];
   provider: Provider;
   model?: string;
+  /** Keys per `generate` API request (default 40). */
+  batchSize: number;
   /** Default `flat`. `i18next-namespace` uses `{localesDir}/{locale}/{namespace}.json`. */
   resourceFormat?: ResourceFormat;
   /** Used when `resourceFormat` is `i18next-namespace`; default `translation`. Ignored when `namespaces` is set. */
@@ -136,6 +153,8 @@ export async function loadConfig(cwd: string): Promise<{ path: string; config: A
   if (model !== undefined && typeof model !== "string") {
     throw new Error("ai-i18n.config.json: model must be a string when set");
   }
+
+  const batchSize = parseBatchSize(o.batchSize);
 
   let extracted: Awaited<ReturnType<typeof extractI18nInitFromFile>> | null = null;
   if (hasI18n) {
@@ -260,6 +279,7 @@ export async function loadConfig(cwd: string): Promise<{ path: string; config: A
     defaultLocale,
     locales,
     provider,
+    batchSize,
     ...(typeof model === "string" ? { model } : {}),
     ...(resourceFormat !== "flat" ? { resourceFormat } : {}),
     ...(namespace !== undefined && namespaces === undefined ? { namespace } : {}),

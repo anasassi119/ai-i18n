@@ -259,7 +259,7 @@ export async function runGenerateWithConfig(
           sourceLocale: config.defaultLocale,
           entries: work,
         },
-        { model: config.model },
+        { model: config.model, batchSize: config.batchSize },
       );
     } else {
       const rel = localeJsonFilesForLocale(cwd, config, locale)

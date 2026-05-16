@@ -13,6 +13,8 @@ export interface TranslateBatchInput {
 
 export interface TranslateBatchOptions {
   model?: string;
+  /** Keys per API request; from config `batchSize` (default 40). */
+  batchSize?: number;
 }
 
 export type TranslateBatchResult = Array<{ key: string; text: string }>;

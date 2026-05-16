@@ -25,6 +25,7 @@ function baseConfig(overrides: Partial<AitConfig> = {}): AitConfig {
     defaultLocale: "en",
     locales: ["fr"],
     provider: "openai",
+    batchSize: 40,
     ...overrides,
   };
 }

@@ -17,6 +17,8 @@ npx ai-i18n generate --force --locale de # re-translate only `de` (ignores per-k
 
 **`generate`** only updates **non-default** locales listed in **`locales`** (the default language is the source catalog). If **`locales`** only contains the default, the CLI prints a short message and exits — add other language codes (from i18next `supportedLngs`) or use **`--locale`**.
 
+Chunk size for each translation API call comes from **`batchSize`** in `ai-i18n.config.json` (default **40**; see [configuration.md](./configuration.md)).
+
 ```bash
 npx ai-i18n diff             # compare code vs catalogs; exits 1 if drift (for CI)
 npx ai-i18n diff --add-missing-default  # add missing keys; seed/fill from static defaultValue when present

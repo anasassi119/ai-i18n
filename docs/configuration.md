@@ -23,6 +23,7 @@ Place at the **project root** (where you run the CLI).
 | `i18n` | conditional | Project-relative path to **your** module that calls **`*.init({...})`** for i18next-style setup. When set, the CLI **parses this file only** (no execution) to derive **`defaultLocale`**, **`locales`**, and usually **`resourceFormat`** / **`namespace`**. **When omitted**, you must set **`defaultLocale`**, **`locales`**, and layout fields (**`resourceFormat`**, and for namespace layout **`namespace`** or **`namespaces`**) explicitly — useful for catalog-only workflows. |
 | `provider` | no (defaults to `openai` if omitted) | `openai` \| `anthropic`. **Generated** default from `init` is `openai`. |
 | `model` | no | Provider model id. OpenAI CLI default when omitted: **`gpt-5-mini`**. |
+| `batchSize` | no (default **40**) | Integer **1–100**. Keys sent per translation API request in **`generate`** (OpenAI and Anthropic). Typical range **20–50**; lower if batches fail to parse, higher for many short strings. |
 
 ## Optional overrides (when static inference is wrong or you prefer explicit values)
 

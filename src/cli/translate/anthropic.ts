@@ -1,6 +1,5 @@
+import { DEFAULT_BATCH_SIZE } from "../config.js";
 import type { TranslateBatchInput, TranslateBatchOptions, TranslateBatchResult } from "./types.js";
-
-const BATCH_SIZE = 35;
 
 function chunk<T>(arr: T[], size: number): T[][] {
   const out: T[][] = [];
@@ -49,7 +48,8 @@ export async function anthropicTranslator(
 
   const client = new Anthropic({ apiKey });
   const model = options.model ?? "claude-3-5-haiku-20241022";
-  const batches = chunk(input.entries, BATCH_SIZE);
+  const batchSize = options.batchSize ?? DEFAULT_BATCH_SIZE;
+  const batches = chunk(input.entries, batchSize);
   const out: TranslateBatchResult = [];
 
   for (const batch of batches) {

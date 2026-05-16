@@ -104,8 +104,11 @@ Optional: set `"resourceFormat": "i18next-namespace"` (and `"namespace"` if not 
 | `localesAutoDiscover` | `boolean` | <code>true &#124; false</code> | Only `true` rescans `localesDir` into `locales`. |
 | `provider` | `string` | <code>openai &#124; anthropic</code> | Default `openai`. |
 | `model` | `string` | <code>*</code> | Optional model id (e.g. `gpt-5-mini`). |
+| `batchSize` | `number` | integer **1–100**, default **40** | Keys per API request in **`generate`**; lower = more calls, higher = fewer calls (watch prompt size). |
 
 <code>*</code> = any non-empty string (or non-empty `string[]`) the field allows.
+
+**Large catalogs:** optional **`batchSize`** controls how many keys each `generate` API call translates (default **40**). Use a smaller value if responses truncate or JSON parsing fails; use a larger value (e.g. 50–80) for many short labels to reduce total API calls.
 
 **Translation cache (not in config):** `node_modules/.cache/ai-i18n/.ai-i18n-cache.json` (gitignored via `node_modules`).
 

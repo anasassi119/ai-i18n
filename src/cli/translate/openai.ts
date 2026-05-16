@@ -1,10 +1,9 @@
+import { DEFAULT_BATCH_SIZE } from "../config.js";
 import type {
   TranslateBatchInput,
   TranslateBatchOptions,
   TranslateBatchResult,
 } from "./types.js";
-
-const BATCH_SIZE = 40;
 
 function chunk<T>(arr: T[], size: number): T[][] {
   const out: T[][] = [];
@@ -57,7 +56,8 @@ export async function openAiTranslator(
 
   const client = new OpenAI({ apiKey });
   const model = options.model ?? "gpt-5-mini";
-  const batches = chunk(input.entries, BATCH_SIZE);
+  const batchSize = options.batchSize ?? DEFAULT_BATCH_SIZE;
+  const batches = chunk(input.entries, batchSize);
   const out: TranslateBatchResult = [];
 
   for (const batch of batches) {

@@ -13,6 +13,7 @@ function cfg(over: Partial<AitConfig> = {}): AitConfig {
     defaultLocale: "en",
     locales: ["en", "fr"],
     provider: "openai",
+    batchSize: 40,
     ...over,
   };
 }

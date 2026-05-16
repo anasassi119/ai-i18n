@@ -109,6 +109,34 @@ describe("loadConfig", () => {
       expect(config.locales).toEqual(["en", "fr"]);
       expect(config.localesDir).toBe("locales");
       expect(config.i18n).toBe("src/i18n.ts");
+      expect(config.batchSize).toBe(40);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("loads custom batchSize", async () => {
+    const dir = await mkdtemp(path.join(tmpdir(), "ai-i18n-cfg-bs-"));
+    try {
+      await writeProjectWithI18n(dir, {
+        i18nBody: flatI18nStub,
+        configExtra: { batchSize: 25 },
+      });
+      const { config } = await loadConfig(dir);
+      expect(config.batchSize).toBe(25);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it.each([0, -1, 1.5, 101, "40"])("rejects invalid batchSize %s", async (bad) => {
+    const dir = await mkdtemp(path.join(tmpdir(), "ai-i18n-cfg-bs-bad-"));
+    try {
+      await writeProjectWithI18n(dir, {
+        i18nBody: flatI18nStub,
+        configExtra: { batchSize: bad },
+      });
+      await expect(loadConfig(dir)).rejects.toThrow(/batchSize must be an integer/);
     } finally {
       await rm(dir, { recursive: true, force: true });
     }
