@@ -7,7 +7,7 @@ function parseGenerateLocaleFlags(argv: string[]): string[] | undefined {
   const locales: string[] = [];
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
-    if (a === "--force") continue;
+    if (a === "--force" || a === "--sync-default-from-code") continue;
     if (a === "--locale") {
       const v = argv[++i];
       if (v === undefined || v.startsWith("-")) {
@@ -36,6 +36,7 @@ async function main(): Promise<void> {
   if (cmd === "generate") {
     const argv = args.slice(1);
     const force = argv.includes("--force");
+    const syncDefaultFromCode = argv.includes("--sync-default-from-code");
     let onlyLocales: string[] | undefined;
     try {
       onlyLocales = parseGenerateLocaleFlags(argv);
@@ -45,7 +46,7 @@ async function main(): Promise<void> {
       return;
     }
     try {
-      await runGenerate(cwd, { force, onlyLocales });
+      await runGenerate(cwd, { force, onlyLocales, syncDefaultFromCode });
     } catch (e) {
       console.error(e instanceof Error ? e.message : e);
       process.exitCode = 1;
@@ -108,7 +109,7 @@ async function main(): Promise<void> {
   }
 
   console.error(
-    "Usage: ai-i18n init [--force] [--silent] [--no-input] [--i18n <path>] | ai-i18n generate [--force] [--locale <code> ...] | ai-i18n diff [--add-missing-default]",
+    "Usage: ai-i18n init [--force] [--silent] [--no-input] [--i18n <path>] | ai-i18n generate [--force] [--sync-default-from-code] [--locale <code> ...] | ai-i18n diff [--add-missing-default]",
   );
   process.exitCode = 1;
 }

@@ -24,7 +24,6 @@ function baseConfig(overrides: Partial<AitConfig> = {}): AitConfig {
     i18n: "src/i18n.ts",
     defaultLocale: "en",
     locales: ["fr"],
-    cacheDir: ".ai-i18n",
     provider: "openai",
     ...overrides,
   };

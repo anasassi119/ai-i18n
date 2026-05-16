@@ -180,6 +180,61 @@ describe("runDiff", () => {
     expect((JSON.parse(enRaw) as Record<string, string>).b).toBe("");
   });
 
+  it("--add-missing-default seeds defaultValue from code", async () => {
+    dir = await mkdtemp(path.join(tmpdir(), "ai-i18n-diff-dv-"));
+    await mkdir(path.join(dir, "src"), { recursive: true });
+    await mkdir(path.join(dir, "locales"), { recursive: true });
+    await writeFile(path.join(dir, "src", "i18n.ts"), flatI18n, "utf8");
+    await writeFile(
+      path.join(dir, "ai-i18n.config.json"),
+      JSON.stringify({
+        sourceGlobs: ["src/**/*.tsx"],
+        localesDir: "locales",
+        i18n: "src/i18n.ts",
+        provider: "openai",
+      }),
+      "utf8",
+    );
+    await writeFile(
+      path.join(dir, "src", "App.tsx"),
+      `declare function t(k: string, o?: unknown): string;\nexport function X() { return t("newKey", { defaultValue: "New text" }); }\n`,
+      "utf8",
+    );
+    await writeFile(path.join(dir, "locales", "en.json"), "{}\n", "utf8");
+    await writeFile(path.join(dir, "locales", "fr.json"), "{}\n", "utf8");
+
+    await runDiff(dir, { addMissingToDefault: true });
+    const en = JSON.parse(await readFile(path.join(dir, "locales", "en.json"), "utf8")) as Record<string, string>;
+    expect(en.newKey).toBe("New text");
+  });
+
+  it("fails when default catalog empty but code has defaultValue", async () => {
+    dir = await mkdtemp(path.join(tmpdir(), "ai-i18n-diff-dv-empty-"));
+    await mkdir(path.join(dir, "src"), { recursive: true });
+    await mkdir(path.join(dir, "locales"), { recursive: true });
+    await writeFile(path.join(dir, "src", "i18n.ts"), flatI18n, "utf8");
+    await writeFile(
+      path.join(dir, "ai-i18n.config.json"),
+      JSON.stringify({
+        sourceGlobs: ["src/**/*.tsx"],
+        localesDir: "locales",
+        i18n: "src/i18n.ts",
+        provider: "openai",
+      }),
+      "utf8",
+    );
+    await writeFile(
+      path.join(dir, "src", "App.tsx"),
+      `declare function t(k: string, o?: unknown): string;\nexport function X() { return t("k", { defaultValue: "Text" }); }\n`,
+      "utf8",
+    );
+    await writeFile(path.join(dir, "locales", "en.json"), JSON.stringify({ k: "" }, null, 2) + "\n", "utf8");
+    await writeFile(path.join(dir, "locales", "fr.json"), JSON.stringify({ k: "" }, null, 2) + "\n", "utf8");
+
+    const { ok } = await runDiff(dir);
+    expect(ok).toBe(false);
+  });
+
   it("without --add-missing-default does not write default catalog", async () => {
     dir = await mkdtemp(path.join(tmpdir(), "ai-i18n-diff-noadd-"));
     await writeLayout(dir, {

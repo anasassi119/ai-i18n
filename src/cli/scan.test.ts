@@ -12,7 +12,6 @@ function cfg(over: Partial<AitConfig> = {}): AitConfig {
     i18n: "src/i18n.ts",
     defaultLocale: "en",
     locales: ["en", "fr"],
-    cacheDir: ".ai-i18n",
     provider: "openai",
     ...over,
   };
@@ -94,5 +93,31 @@ function Skeleton({ className }: { className?: string }) {
     const { keysInCode } = await scanSources(dir, ["src/**/*.tsx"], scanContextFromConfig(cfg()));
     expect(keysInCode.has("animate-pulse rounded-none bg-background")).toBe(false);
     expect(keysInCode.size).toBe(0);
+  });
+
+  it("extracts defaultValue from string shorthand", async () => {
+    const { scanSources } = await import("./scan.js");
+    dir = await mkdtemp(path.join(tmpdir(), "ai-i18n-scan-dv-"));
+    await mkdir(path.join(dir, "src"), { recursive: true });
+    await writeFile(
+      path.join(dir, "src", "App.tsx"),
+      `function X() { return <span>{t('save', 'Save changes')}</span>; }`,
+      "utf8",
+    );
+    const { scannedKeys } = await scanSources(dir, ["src/**/*.tsx"], scanContextFromConfig(cfg()));
+    expect(scannedKeys.get("save")?.defaultText).toBe("Save changes");
+  });
+
+  it("extracts defaultValue from options object", async () => {
+    const { scanSources } = await import("./scan.js");
+    dir = await mkdtemp(path.join(tmpdir(), "ai-i18n-scan-dv2-"));
+    await mkdir(path.join(dir, "src"), { recursive: true });
+    await writeFile(
+      path.join(dir, "src", "App.tsx"),
+      `function X() { return <span>{t('save', { defaultValue: 'Save', count: 1 })}</span>; }`,
+      "utf8",
+    );
+    const { scannedKeys } = await scanSources(dir, ["src/**/*.tsx"], scanContextFromConfig(cfg()));
+    expect(scannedKeys.get("save")?.defaultText).toBe("Save");
   });
 });

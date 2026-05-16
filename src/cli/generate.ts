@@ -5,7 +5,10 @@ import { loadConfig } from "./config.js";
 import type { LocaleCatalogBundle } from "./catalogBundle.js";
 import { loadLocaleCatalogBundle, writeLocaleCatalogBundle } from "./catalogBundle.js";
 import { localeJsonFilesForLocale } from "./catalogLayout.js";
+import { defaultCacheDir } from "./cachePath.js";
 import { hashSource } from "./hash.js";
+import { scanContextFromConfig, scanSources } from "./scan.js";
+import { syncDefaultCatalogFromCode, warnDefaultValueDrift } from "./syncDefaultFromCode.js";
 import { ensureTranslatorNotesFile, loadTranslatorNotes } from "./translatorNotes.js";
 import { resolveTranslator } from "./translate/factory.js";
 
@@ -38,6 +41,8 @@ export type RunGenerateOptions = {
   force?: boolean;
   /** If set, only these target locales are processed (must appear in config `locales`, not the default). */
   onlyLocales?: string[];
+  /** Merge missing keys and empty default strings from code defaultValue before translating. */
+  syncDefaultFromCode?: boolean;
 };
 
 function validateAndNormalizeOnlyLocales(requested: string[], config: AitConfig): string[] {
@@ -105,11 +110,15 @@ async function throwHelpfulMissingDefaultCatalog(
 
 export async function runGenerate(cwd: string, options: RunGenerateOptions = {}): Promise<void> {
   const { config } = await loadConfig(cwd);
-  await runGenerateWithConfig(cwd, config, options.force ?? false, { onlyLocales: options.onlyLocales });
+  await runGenerateWithConfig(cwd, config, options.force ?? false, {
+    onlyLocales: options.onlyLocales,
+    syncDefaultFromCode: options.syncDefaultFromCode,
+  });
 }
 
 export type RunGenerateWithConfigOptions = {
   onlyLocales?: string[];
+  syncDefaultFromCode?: boolean;
 };
 
 export async function runGenerateWithConfig(
@@ -138,6 +147,28 @@ export async function runGenerateWithConfig(
   await ensureTranslatorNotesFile(cwd, config.localesDir);
   const translatorNotes = await loadTranslatorNotes(cwd, config.localesDir);
 
+  const scanCtx = scanContextFromConfig(config);
+  const scan = await scanSources(cwd, config.sourceGlobs, scanCtx);
+
+  if (options.syncDefaultFromCode) {
+    const keysInDefault = new Set<string>();
+    try {
+      const pre = await loadLocaleCatalogBundle(cwd, config, config.defaultLocale);
+      for (const k of Object.keys(pre.mergedFlat)) keysInDefault.add(k);
+    } catch {
+      /* no default catalog yet */
+    }
+    const missing = [...scan.keysInCode].filter((k) => !keysInDefault.has(k));
+    const { added, filled } = await syncDefaultCatalogFromCode(cwd, config, scan.scannedKeys, {
+      missingLogicalKeys: missing.length > 0 ? missing : undefined,
+    });
+    if (added > 0 || filled > 0) {
+      console.log(
+        `[ai-i18n] Synced default catalog from code: ${added} missing key(s), ${filled} filled from defaultValue.`,
+      );
+    }
+  }
+
   const defaultBundle = await (async (): Promise<LocaleCatalogBundle> => {
     try {
       return await loadLocaleCatalogBundle(cwd, config, config.defaultLocale);
@@ -146,6 +177,7 @@ export async function runGenerateWithConfig(
     }
   })();
   const defaultCatalog = defaultBundle.mergedFlat;
+  warnDefaultValueDrift(scan.scannedKeys, defaultCatalog);
   const defaultKeys = [...defaultBundle.orderedLogicalKeys];
   const defaultKeySet = new Set(defaultKeys);
   for (const k of Object.keys(defaultCatalog)) {
@@ -155,7 +187,7 @@ export async function runGenerateWithConfig(
     }
   }
 
-  const cacheDir = path.resolve(cwd, config.cacheDir);
+  const cacheDir = defaultCacheDir(cwd);
   const cache = await readCache(cacheDir);
 
   const only = onlyLocales;

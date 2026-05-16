@@ -47,9 +47,27 @@ function mergeDiscoveredLocales(defaultLocale: string, discovered: string[]): st
   return dedup;
 }
 
+const REMOVED_CONFIG_KEYS: Record<string, string> = {
+  catalogDir: 'Use "localesDir" instead of "catalogDir".',
+  catalogShape: 'Use "localeShape" instead of "catalogShape".',
+  cacheDir: 'cacheDir was removed in v5; cache is always node_modules/.cache/ai-i18n.',
+};
+
+function assertNoRemovedConfigKeys(o: Record<string, unknown>): void {
+  const found: string[] = [];
+  for (const key of Object.keys(REMOVED_CONFIG_KEYS)) {
+    if (key in o) found.push(key);
+  }
+  if (found.length === 0) return;
+  const hints = found.map((k) => `  - "${k}": ${REMOVED_CONFIG_KEYS[k]}`).join("\n");
+  throw new Error(
+    `ai-i18n.config.json: removed option(s) in v5:\n${hints}\nSee docs/configuration.md for migration.`,
+  );
+}
+
 export interface AitConfig {
   sourceGlobs: string[];
-  /** Directory containing locale JSON and `translator-notes.json` (formerly `catalogDir`). */
+  /** Directory containing locale JSON and `translator-notes.json`. */
   localesDir: string;
   /**
    * Project-relative path to the module that calls `*.init({...})` for i18next (static analysis).
@@ -58,8 +76,6 @@ export interface AitConfig {
   i18n?: string;
   defaultLocale: string;
   locales: string[];
-  /** Where `.ai-i18n-cache.json` is stored (default: ".ai-i18n"). */
-  cacheDir: string;
   provider: Provider;
   model?: string;
   /** Default `flat`. `i18next-namespace` uses `{localesDir}/{locale}/{namespace}.json`. */
@@ -85,12 +101,7 @@ export async function loadConfig(cwd: string): Promise<{ path: string; config: A
     throw new Error("ai-i18n.config.json must be a JSON object");
   }
   const o = parsed as Record<string, unknown>;
-
-  if ("catalogDir" in o && !("localesDir" in o)) {
-    throw new Error(
-      'ai-i18n.config.json: "catalogDir" was renamed to "localesDir" in v4. Update your config.',
-    );
-  }
+  assertNoRemovedConfigKeys(o);
 
   const sourceGlobs = o.sourceGlobs;
   if (!Array.isArray(sourceGlobs) || !sourceGlobs.every((x) => typeof x === "string")) {
@@ -114,11 +125,6 @@ export async function loadConfig(cwd: string): Promise<{ path: string; config: A
   const providerRaw = o.provider;
   let provider: Provider = "openai";
   if (providerRaw !== undefined && providerRaw !== null) {
-    if (providerRaw === "stub") {
-      throw new Error(
-        'ai-i18n.config.json: "stub" provider was removed. Use "openai" or "anthropic".',
-      );
-    }
     if (providerRaw === "openai" || providerRaw === "anthropic") {
       provider = providerRaw;
     } else {
@@ -130,9 +136,6 @@ export async function loadConfig(cwd: string): Promise<{ path: string; config: A
   if (model !== undefined && typeof model !== "string") {
     throw new Error("ai-i18n.config.json: model must be a string when set");
   }
-
-  const cacheDirRaw = o.cacheDir;
-  const cacheDir = typeof cacheDirRaw === "string" ? cacheDirRaw : ".ai-i18n";
 
   let extracted: Awaited<ReturnType<typeof extractI18nInitFromFile>> | null = null;
   if (hasI18n) {
@@ -233,27 +236,12 @@ export async function loadConfig(cwd: string): Promise<{ path: string; config: A
   }
 
   const localeShapeRaw = o.localeShape;
-  const deprecatedCatalogShapeRaw = o.catalogShape;
   let localeShape: LocaleShape | undefined;
   if (localeShapeRaw !== undefined && localeShapeRaw !== null) {
     if (localeShapeRaw === "flat" || localeShapeRaw === "nested") {
       localeShape = localeShapeRaw;
     } else {
       throw new Error('ai-i18n.config.json: localeShape must be "flat" or "nested"');
-    }
-  }
-  if (
-    deprecatedCatalogShapeRaw !== undefined &&
-    deprecatedCatalogShapeRaw !== null &&
-    localeShape === undefined
-  ) {
-    if (deprecatedCatalogShapeRaw === "flat" || deprecatedCatalogShapeRaw === "nested") {
-      console.warn(
-        '[ai-i18n] ai-i18n.config.json: "catalogShape" was renamed to "localeShape". Update your config.',
-      );
-      localeShape = deprecatedCatalogShapeRaw;
-    } else {
-      throw new Error('ai-i18n.config.json: catalogShape must be "flat" or "nested"');
     }
   }
 
@@ -271,7 +259,6 @@ export async function loadConfig(cwd: string): Promise<{ path: string; config: A
     ...(i18n !== undefined ? { i18n } : {}),
     defaultLocale,
     locales,
-    cacheDir,
     provider,
     ...(typeof model === "string" ? { model } : {}),
     ...(resourceFormat !== "flat" ? { resourceFormat } : {}),

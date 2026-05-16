@@ -12,8 +12,11 @@ const traverse: typeof import("@babel/traverse").default =
     ? (traverseImport as typeof import("@babel/traverse").default)
     : (traverseImport as { default: typeof import("@babel/traverse").default }).default;
 
+export type ScannedKey = { logicalKey: string; defaultText?: string };
+
 export interface ScanResult {
   keysInCode: Set<string>;
+  scannedKeys: Map<string, ScannedKey>;
 }
 
 export type ScanContext = {
@@ -28,6 +31,8 @@ export function scanContextFromConfig(config: AitConfig): ScanContext {
 }
 
 type HookBinding = { namespace: string; keyPrefix: string };
+
+const defaultTextConflictWarned = new Set<string>();
 
 function bindingNamesFromPattern(id: t.LVal): string[] {
   if (t.isIdentifier(id)) return [id.name];
@@ -112,6 +117,53 @@ function resolveLogicalKey(
   return `${hookNs}:${inner}`;
 }
 
+/** Static defaultValue from i18next `t(key, default)` or `t(key, { defaultValue: '…' })`. */
+export function defaultTextFromTCall(args: t.Node[]): string | undefined {
+  const a1 = args[1];
+  if (a1 === undefined) return undefined;
+  if (t.isStringLiteral(a1)) return a1.value;
+  if (!t.isObjectExpression(a1)) return undefined;
+  for (const prop of a1.properties) {
+    if (!t.isObjectProperty(prop) || prop.computed) continue;
+    const name = t.isIdentifier(prop.key)
+      ? prop.key.name
+      : t.isStringLiteral(prop.key)
+        ? prop.key.value
+        : null;
+    if (name !== "defaultValue") continue;
+    if (t.isStringLiteral(prop.value)) return prop.value.value;
+  }
+  return undefined;
+}
+
+function mergeScannedKey(
+  scannedKeys: Map<string, ScannedKey>,
+  logicalKey: string,
+  defaultText: string | undefined,
+): void {
+  const existing = scannedKeys.get(logicalKey);
+  if (!existing) {
+    scannedKeys.set(
+      logicalKey,
+      defaultText !== undefined ? { logicalKey, defaultText } : { logicalKey },
+    );
+    return;
+  }
+  if (defaultText === undefined) return;
+  if (existing.defaultText === undefined) {
+    existing.defaultText = defaultText;
+    return;
+  }
+  if (existing.defaultText === defaultText) return;
+  existing.defaultText = undefined;
+  if (!defaultTextConflictWarned.has(logicalKey)) {
+    defaultTextConflictWarned.add(logicalKey);
+    console.warn(
+      `[ai-i18n] Conflicting defaultValue for key "${logicalKey}" in scanned files — omitting default text for this key.`,
+    );
+  }
+}
+
 function skipNestedFunctions(inner: NodePath<t.Node>): void {
   if (
     inner.isFunctionDeclaration() ||
@@ -137,6 +189,7 @@ function collectCallsInSubtree(
   hooks: Map<string, HookBinding>,
   ctx: ScanContext | undefined,
   keys: Set<string>,
+  scannedKeys: Map<string, ScannedKey>,
 ): void {
   rootPath.traverse({
     FunctionDeclaration: skipNestedFunctions,
@@ -146,11 +199,12 @@ function collectCallsInSubtree(
       const callee = callPath.node.callee;
       if (!t.isIdentifier(callee)) return;
       const hook = hooks.get(callee.name);
-      // Only i18next-style calls: bare `t('…')` or the `t` bound from `useTranslation()` (incl. aliases).
       if (hook === undefined && callee.name !== "t") return;
       const arg0 = callPath.node.arguments[0];
       if (!t.isStringLiteral(arg0)) return;
-      keys.add(resolveLogicalKey(arg0.value, hook, ctx));
+      const logicalKey = resolveLogicalKey(arg0.value, hook, ctx);
+      keys.add(logicalKey);
+      mergeScannedKey(scannedKeys, logicalKey, defaultTextFromTCall(callPath.node.arguments));
     },
   });
 }
@@ -159,41 +213,47 @@ function cloneHooks(hooks: Map<string, HookBinding>): Map<string, HookBinding> {
   return new Map(hooks);
 }
 
-function walkBlock(blockPath: NodePath<t.BlockStatement>, hooks: Map<string, HookBinding>, ctx: ScanContext | undefined, keys: Set<string>): void {
+function walkBlock(
+  blockPath: NodePath<t.BlockStatement>,
+  hooks: Map<string, HookBinding>,
+  ctx: ScanContext | undefined,
+  keys: Set<string>,
+  scannedKeys: Map<string, ScannedKey>,
+): void {
   for (const stmtPath of blockPath.get("body")) {
     if (stmtPath.isVariableDeclaration()) {
       for (const decl of stmtPath.node.declarations) {
         applyUseTranslationDecl(decl, hooks);
       }
-      collectCallsInSubtree(stmtPath, hooks, ctx, keys);
+      collectCallsInSubtree(stmtPath, hooks, ctx, keys, scannedKeys);
       continue;
     }
     if (stmtPath.isBlockStatement()) {
-      walkBlock(stmtPath, cloneHooks(hooks), ctx, keys);
+      walkBlock(stmtPath, cloneHooks(hooks), ctx, keys, scannedKeys);
       continue;
     }
     if (stmtPath.isIfStatement()) {
       const ifStmt = stmtPath.node;
       if (t.isBlockStatement(ifStmt.consequent)) {
-        walkBlock(stmtPath.get("consequent") as NodePath<t.BlockStatement>, cloneHooks(hooks), ctx, keys);
+        walkBlock(stmtPath.get("consequent") as NodePath<t.BlockStatement>, cloneHooks(hooks), ctx, keys, scannedKeys);
       } else {
-        collectCallsInSubtree(stmtPath.get("consequent") as NodePath<t.Node>, hooks, ctx, keys);
+        collectCallsInSubtree(stmtPath.get("consequent") as NodePath<t.Node>, hooks, ctx, keys, scannedKeys);
       }
       if (ifStmt.alternate) {
         if (t.isBlockStatement(ifStmt.alternate)) {
-          walkBlock(stmtPath.get("alternate") as NodePath<t.BlockStatement>, cloneHooks(hooks), ctx, keys);
+          walkBlock(stmtPath.get("alternate") as NodePath<t.BlockStatement>, cloneHooks(hooks), ctx, keys, scannedKeys);
         } else if (t.isIfStatement(ifStmt.alternate)) {
-          walkIfChain(stmtPath.get("alternate") as NodePath<t.IfStatement>, hooks, ctx, keys);
+          walkIfChain(stmtPath.get("alternate") as NodePath<t.IfStatement>, hooks, ctx, keys, scannedKeys);
         } else {
-          collectCallsInSubtree(stmtPath.get("alternate") as NodePath<t.Node>, hooks, ctx, keys);
+          collectCallsInSubtree(stmtPath.get("alternate") as NodePath<t.Node>, hooks, ctx, keys, scannedKeys);
         }
       }
       continue;
     }
     if (stmtPath.isWhileStatement() || stmtPath.isDoWhileStatement()) {
       const bodyPath = stmtPath.get("body") as NodePath<t.Statement>;
-      if (bodyPath.isBlockStatement()) walkBlock(bodyPath, cloneHooks(hooks), ctx, keys);
-      else collectCallsInSubtree(bodyPath, hooks, ctx, keys);
+      if (bodyPath.isBlockStatement()) walkBlock(bodyPath, cloneHooks(hooks), ctx, keys, scannedKeys);
+      else collectCallsInSubtree(bodyPath, hooks, ctx, keys, scannedKeys);
       continue;
     }
     if (stmtPath.isForStatement()) {
@@ -202,8 +262,8 @@ function walkBlock(blockPath: NodePath<t.BlockStatement>, hooks: Map<string, Hoo
         for (const decl of initPath.node.declarations) applyUseTranslationDecl(decl, hooks);
       }
       const bodyPath = stmtPath.get("body") as NodePath<t.Statement>;
-      if (bodyPath.isBlockStatement()) walkBlock(bodyPath, cloneHooks(hooks), ctx, keys);
-      else collectCallsInSubtree(bodyPath, hooks, ctx, keys);
+      if (bodyPath.isBlockStatement()) walkBlock(bodyPath, cloneHooks(hooks), ctx, keys, scannedKeys);
+      else collectCallsInSubtree(bodyPath, hooks, ctx, keys, scannedKeys);
       continue;
     }
     if (stmtPath.isForOfStatement() || stmtPath.isForInStatement()) {
@@ -212,22 +272,22 @@ function walkBlock(blockPath: NodePath<t.BlockStatement>, hooks: Map<string, Hoo
         for (const decl of leftPath.node.declarations) applyUseTranslationDecl(decl, hooks);
       }
       const bodyPath = stmtPath.get("body") as NodePath<t.Statement>;
-      if (bodyPath.isBlockStatement()) walkBlock(bodyPath, cloneHooks(hooks), ctx, keys);
-      else collectCallsInSubtree(bodyPath, hooks, ctx, keys);
+      if (bodyPath.isBlockStatement()) walkBlock(bodyPath, cloneHooks(hooks), ctx, keys, scannedKeys);
+      else collectCallsInSubtree(bodyPath, hooks, ctx, keys, scannedKeys);
       continue;
     }
     if (stmtPath.isTryStatement()) {
       const tryStmt = stmtPath.node;
-      walkBlock(stmtPath.get("block") as NodePath<t.BlockStatement>, cloneHooks(hooks), ctx, keys);
+      walkBlock(stmtPath.get("block") as NodePath<t.BlockStatement>, cloneHooks(hooks), ctx, keys, scannedKeys);
       if (tryStmt.handler?.body) {
-        walkBlock(stmtPath.get("handler").get("body") as NodePath<t.BlockStatement>, cloneHooks(hooks), ctx, keys);
+        walkBlock(stmtPath.get("handler").get("body") as NodePath<t.BlockStatement>, cloneHooks(hooks), ctx, keys, scannedKeys);
       }
       if (tryStmt.finalizer) {
-        walkBlock(stmtPath.get("finalizer") as NodePath<t.BlockStatement>, cloneHooks(hooks), ctx, keys);
+        walkBlock(stmtPath.get("finalizer") as NodePath<t.BlockStatement>, cloneHooks(hooks), ctx, keys, scannedKeys);
       }
       continue;
     }
-    collectCallsInSubtree(stmtPath as NodePath<t.Node>, hooks, ctx, keys);
+    collectCallsInSubtree(stmtPath as NodePath<t.Node>, hooks, ctx, keys, scannedKeys);
   }
 }
 
@@ -236,26 +296,31 @@ function walkIfChain(
   hooks: Map<string, HookBinding>,
   ctx: ScanContext | undefined,
   keys: Set<string>,
+  scannedKeys: Map<string, ScannedKey>,
 ): void {
   const node = ifPath.node;
   if (t.isBlockStatement(node.consequent)) {
-    walkBlock(ifPath.get("consequent") as NodePath<t.BlockStatement>, cloneHooks(hooks), ctx, keys);
+    walkBlock(ifPath.get("consequent") as NodePath<t.BlockStatement>, cloneHooks(hooks), ctx, keys, scannedKeys);
   } else {
-    collectCallsInSubtree(ifPath.get("consequent") as NodePath<t.Node>, hooks, ctx, keys);
+    collectCallsInSubtree(ifPath.get("consequent") as NodePath<t.Node>, hooks, ctx, keys, scannedKeys);
   }
   if (node.alternate) {
     if (t.isIfStatement(node.alternate)) {
-      walkIfChain(ifPath.get("alternate") as NodePath<t.IfStatement>, hooks, ctx, keys);
+      walkIfChain(ifPath.get("alternate") as NodePath<t.IfStatement>, hooks, ctx, keys, scannedKeys);
     } else if (t.isBlockStatement(node.alternate)) {
-      walkBlock(ifPath.get("alternate") as NodePath<t.BlockStatement>, cloneHooks(hooks), ctx, keys);
+      walkBlock(ifPath.get("alternate") as NodePath<t.BlockStatement>, cloneHooks(hooks), ctx, keys, scannedKeys);
     } else {
-      collectCallsInSubtree(ifPath.get("alternate") as NodePath<t.Node>, hooks, ctx, keys);
+      collectCallsInSubtree(ifPath.get("alternate") as NodePath<t.Node>, hooks, ctx, keys, scannedKeys);
     }
   }
 }
 
-/** Top-level statements that are not function bodies (hooks + stray t() at module scope). */
-function walkProgramSurface(programPath: NodePath<t.Program>, ctx: ScanContext | undefined, keys: Set<string>): void {
+function walkProgramSurface(
+  programPath: NodePath<t.Program>,
+  ctx: ScanContext | undefined,
+  keys: Set<string>,
+  scannedKeys: Map<string, ScannedKey>,
+): void {
   const hooks = new Map<string, HookBinding>();
   for (const stmtPath of programPath.get("body")) {
     if (stmtPath.isFunctionDeclaration()) continue;
@@ -268,10 +333,10 @@ function walkProgramSurface(programPath: NodePath<t.Program>, ctx: ScanContext |
     }
     if (stmtPath.isVariableDeclaration()) {
       for (const decl of stmtPath.node.declarations) applyUseTranslationDecl(decl, hooks);
-      collectCallsInSubtree(stmtPath, hooks, ctx, keys);
+      collectCallsInSubtree(stmtPath, hooks, ctx, keys, scannedKeys);
       continue;
     }
-    collectCallsInSubtree(stmtPath as NodePath<t.Node>, hooks, ctx, keys);
+    collectCallsInSubtree(stmtPath as NodePath<t.Node>, hooks, ctx, keys, scannedKeys);
   }
 }
 
@@ -279,12 +344,13 @@ function walkAnyFunction(
   fnPath: NodePath<t.FunctionDeclaration | t.FunctionExpression | t.ArrowFunctionExpression>,
   ctx: ScanContext | undefined,
   keys: Set<string>,
+  scannedKeys: Map<string, ScannedKey>,
 ): void {
   const body = fnPath.get("body") as NodePath<t.BlockStatement | t.Expression>;
   if (body.isBlockStatement()) {
-    walkBlock(body, new Map(), ctx, keys);
+    walkBlock(body, new Map(), ctx, keys, scannedKeys);
   } else if (body.node) {
-    collectCallsInSubtree(body as NodePath<t.Node>, new Map(), ctx, keys);
+    collectCallsInSubtree(body as NodePath<t.Node>, new Map(), ctx, keys, scannedKeys);
   }
 }
 
@@ -293,7 +359,9 @@ export async function scanSources(
   sourceGlobs: string[],
   context?: ScanContext,
 ): Promise<ScanResult> {
+  defaultTextConflictWarned.clear();
   const keysInCode = new Set<string>();
+  const scannedKeys = new Map<string, ScannedKey>();
 
   const files = await fg(sourceGlobs, { cwd, absolute: true, onlyFiles: true });
   for (const file of files) {
@@ -311,23 +379,23 @@ export async function scanSources(
 
     traverse(ast, {
       Program(path) {
-        walkProgramSurface(path, context, keysInCode);
+        walkProgramSurface(path, context, keysInCode, scannedKeys);
       },
       FunctionDeclaration(path) {
-        walkAnyFunction(path, context, keysInCode);
+        walkAnyFunction(path, context, keysInCode, scannedKeys);
       },
       FunctionExpression(path) {
-        walkAnyFunction(path, context, keysInCode);
+        walkAnyFunction(path, context, keysInCode, scannedKeys);
       },
       ArrowFunctionExpression(path) {
-        walkAnyFunction(path, context, keysInCode);
+        walkAnyFunction(path, context, keysInCode, scannedKeys);
       },
       ClassMethod(path) {
         const body = path.get("body");
-        if (body.isBlockStatement()) walkBlock(body, new Map(), context, keysInCode);
+        if (body.isBlockStatement()) walkBlock(body, new Map(), context, keysInCode, scannedKeys);
       },
     });
   }
 
-  return { keysInCode };
+  return { keysInCode, scannedKeys };
 }

@@ -5,5 +5,4 @@ dist
 .env
 .env.*
 .DS_Store
-.ai-i18n
 .ait

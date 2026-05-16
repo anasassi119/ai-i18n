@@ -52,7 +52,7 @@ Callee must be named **`t`**, first argument a **string literal** key. Use norma
 declare function t(key: string, opts?: Record<string, unknown>): string;
 
 export function Greeting() {
-  return <p>{t("welcome", { name: "Ada" })}</p>;
+  return <p>{t("welcome", { name: "Anas Assi" })}</p>;
 }
 ```
 
@@ -77,7 +77,6 @@ Edit **`locales/translator-notes.json`** (or **`{localesDir}/translator-notes.js
   "sourceGlobs": ["src/**/*.{tsx,ts,jsx,js}"],
   "localesDir": "locales",
   "i18n": "src/i18n.ts",
-  "cacheDir": ".ai-i18n",
   "provider": "openai",
   "model": "gpt-5-mini"
 }
@@ -102,15 +101,15 @@ Optional: set `"resourceFormat": "i18next-namespace"` (and `"namespace"` if not 
 | `namespace` | `string` | <code>translation &#124; *</code> | Namespace layout only; basename without `.json`. Omit if `flat` or if `namespaces` set. |
 | `namespaces` | `string[]` | <code>*</code> | Namespace layout only; e.g. `["nav","common"]`. Omit if `flat`. |
 | `localeShape` | `string` | <code>flat &#124; nested</code> | Key structure inside each locale JSON file. |
-| `catalogShape` | `string` | <code>flat &#124; nested</code> | Deprecated; prefer `localeShape` (warns once). |
 | `localesAutoDiscover` | `boolean` | <code>true &#124; false</code> | Only `true` rescans `localesDir` into `locales`. |
-| `provider` | `string` | <code>openai &#124; anthropic</code> | Default `openai`. `stub` rejected. |
+| `provider` | `string` | <code>openai &#124; anthropic</code> | Default `openai`. |
 | `model` | `string` | <code>*</code> | Optional model id (e.g. `gpt-5-mini`). |
-| `cacheDir` | `string` | <code>.ai-i18n &#124; *</code> | Optional; `.ai-i18n-cache.json` directory. |
 
 <code>*</code> = any non-empty string (or non-empty `string[]`) the field allows.
 
-**Rejected / errors:** `catalogDir` without `localesDir`. Unknown `provider`. `namespace` / `namespaces` with `flat`. Invalid `resourceFormat` / `localeShape` / `catalogShape`.
+**Translation cache (not in config):** `node_modules/.cache/ai-i18n/.ai-i18n-cache.json` (gitignored via `node_modules`).
+
+**Rejected / errors:** Removed v5 keys (`catalogDir`, `catalogShape`, `cacheDir`). Unknown `provider`. `namespace` / `namespaces` with `flat`. Invalid `resourceFormat` / `localeShape`.
 
 Full narrative: [docs/configuration.md](./docs/configuration.md).
 
@@ -167,7 +166,7 @@ import { useTranslation } from "react-i18next";
 
 export function Greeting() {
   const { t } = useTranslation();
-  return <p>{t("welcome", { name: "Ada" })}</p>;
+  return <p>{t("welcome", { name: "Anas Assi" })}</p>;
 }
 ```
 
@@ -192,7 +191,7 @@ void i18next.use(initReactI18next).init({ resources, lng: "en", fallbackLng: "en
 ## CLI commands
 
 ```bash
-npx ai-i18n init              # TTY: interactive wizard; else auto-discovery
+npx ai-i18n init              # TTY: interactive wizard; else auto-discovery (beta)
 npx ai-i18n init --no-input   # non-interactive discovery (use in CI from a terminal)
 npx ai-i18n init --force      # replace config from template
 npx ai-i18n generate          # translate / fill target locale files
@@ -210,7 +209,7 @@ npx ai-i18n diff --add-missing-default  # append code-only keys to default catal
 ## Features (summary)
 
 - **Scan** — `t('literalKey', …)` string keys only; optional **`translator-notes.json`** for `generate`; **`i18n`** module for locale list inference.
-- **Generate / diff** — merge from default locale, prune removed keys, `.ai-i18n` cache.
+- **Generate / diff** — merge from default locale, prune removed keys; hash cache under `node_modules/.cache/ai-i18n`.
 - **Providers** — `openai` (default) or `anthropic`; default OpenAI model **`gpt-5-mini`**.
 - **Postinstall** — optional scaffold + configure reminder.
 - **`.env`** — loaded from project root before CLI runs.
@@ -282,6 +281,16 @@ Typically **`npx ai-i18n diff`** (non-zero exit on drift). It respects **`resour
 [MIT](./LICENSE)
 
 ---
+
+## Upgrading from 4.x
+
+Version **5** removes legacy config keys and moves the translation cache:
+
+- Remove **`catalogDir`**, **`catalogShape`**, and **`cacheDir`** from **`ai-i18n.config.json`** (use **`localesDir`** / **`localeShape`** only).
+- Delete project-root **`.ai-i18n/`**; cache is now **`node_modules/.cache/ai-i18n/.ai-i18n-cache.json`**.
+- Scanner reads static **`defaultValue`** from `t()`; **`diff`** flags empty/mismatched default strings; **`diff --add-missing-default`** and **`generate --sync-default-from-code`** seed from code when present.
+
+See [docs/configuration.md](./docs/configuration.md#migration-v4--v5).
 
 ## Upgrading from 3.x
 

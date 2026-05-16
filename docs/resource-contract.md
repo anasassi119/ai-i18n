@@ -26,15 +26,16 @@ This document is the **single contract** for how **ai-i18n** expects locale file
 
 Set optional **`namespace`** when using **`i18next-namespace`** with a **single** file per locale (default **`translation`**). Use **`namespaces`** instead when you have several JSON files per locale; **`namespaces`** requires **`resourceFormat": "i18next-namespace"`** and takes precedence over **`namespace`**.
 
-Optional **`localeShape`**: **`flat`** (default) — only top-level string keys in each JSON file. **`nested`** — plain object trees whose **leaves** are strings; logical keys use **dot paths** (e.g. `nav.home`) inside each namespace file. The deprecated config key **`catalogShape`** maps to **`localeShape`** with a one-time console warning.
+Optional **`localeShape`**: **`flat`** (default) — only top-level string keys in each JSON file. **`nested`** — plain object trees whose **leaves** are strings; logical keys use **dot paths** (e.g. `nav.home`) inside each namespace file.
 
 Optional **`localesAutoDiscover`: true`** — rebuild the **`locales`** list from disk under **`localesDir`** (`*.json` basenames for `flat`, subdirectory names for **`i18next-namespace`**), keeping **`defaultLocale`** first. When **`locales`** is also set in JSON, **`localesAutoDiscover`** still wins when the flag is **`true`** and at least one locale is found on disk.
 
-**Scanner:** the callee must be the identifier **`t`**, first argument a **string literal**. The CLI resolves **logical keys** for **`diff`** (and **`--add-missing-default`**) as follows:
+**Scanner:** the callee must be the identifier **`t`**, first argument a **string literal**. The CLI resolves **logical keys** for **`diff`** and **`generate`** as follows:
 
 - Literal keys containing **`:`** are kept as-is (e.g. **`t('nav:home')`** → `nav:home`).
 - With **`useTranslation('ns')`** (or default **`translation`** when omitted), **`t('key')`** becomes **`ns:key`** when **`namespaces`** has **more than one** entry; when there is only one on-disk namespace and it matches the hook namespace, **short keys** (`key`) are used so single-file catalogs stay unchanged.
 - Optional second argument object: **`keyPrefix`** (string literal) is prepended to the key segment before namespace rules apply.
+- Static **`defaultValue`**: second argument string literal, or **`defaultValue`** string property in the options object — used to seed/fill the **default locale catalog** (`diff --add-missing-default`, `generate --sync-default-from-code`) and to detect drift when the default JSON is empty or differs.
 
 See [cli-reference.md](./cli-reference.md) for a short summary.
 

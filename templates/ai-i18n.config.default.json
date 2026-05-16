@@ -2,7 +2,6 @@
   "sourceGlobs": ["src/**/*.{tsx,ts,jsx,js}"],
   "localesDir": "locales",
   "i18n": "src/i18n.ts",
-  "cacheDir": ".ai-i18n",
   "provider": "openai",
   "model": "gpt-5-mini"
 }

@@ -39,7 +39,7 @@ async function writeProjectWithI18n(
 }
 
 describe("loadConfig", () => {
-  it('rejects legacy "stub" provider', async () => {
+  it('rejects invalid provider', async () => {
     const dir = await mkdtemp(path.join(tmpdir(), "ai-i18n-cfg-"));
     try {
       await writeProjectWithI18n(dir, { i18nBody: flatI18nStub });
@@ -47,13 +47,13 @@ describe("loadConfig", () => {
       const raw = JSON.parse(await readFile(p, "utf8")) as Record<string, unknown>;
       raw.provider = "stub";
       await writeFile(p, JSON.stringify(raw), "utf8");
-      await expect(loadConfig(dir)).rejects.toThrow(/stub/);
+      await expect(loadConfig(dir)).rejects.toThrow(/openai.*anthropic/);
     } finally {
       await rm(dir, { recursive: true, force: true });
     }
   });
 
-  it("rejects catalogDir without localesDir", async () => {
+  it("rejects removed catalogDir key", async () => {
     const dir = await mkdtemp(path.join(tmpdir(), "ai-i18n-cfg-cd-"));
     try {
       await writeFile(
@@ -61,12 +61,40 @@ describe("loadConfig", () => {
         JSON.stringify({
           sourceGlobs: ["a"],
           catalogDir: "locales",
-          i18n: "src/i18n.ts",
+          localesDir: "locales",
+          defaultLocale: "en",
+          locales: ["en"],
           provider: "openai",
         }),
         "utf8",
       );
-      await expect(loadConfig(dir)).rejects.toThrow(/catalogDir.*localesDir/);
+      await expect(loadConfig(dir)).rejects.toThrow(/catalogDir/);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects removed catalogShape key", async () => {
+    const dir = await mkdtemp(path.join(tmpdir(), "ai-i18n-cfg-cs-"));
+    try {
+      await writeProjectWithI18n(dir, {
+        i18nBody: flatI18nStub,
+        configExtra: { catalogShape: "flat" },
+      });
+      await expect(loadConfig(dir)).rejects.toThrow(/catalogShape/);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects removed cacheDir key", async () => {
+    const dir = await mkdtemp(path.join(tmpdir(), "ai-i18n-cfg-cache-"));
+    try {
+      await writeProjectWithI18n(dir, {
+        i18nBody: flatI18nStub,
+        configExtra: { cacheDir: ".ai-i18n" },
+      });
+      await expect(loadConfig(dir)).rejects.toThrow(/cacheDir/);
     } finally {
       await rm(dir, { recursive: true, force: true });
     }

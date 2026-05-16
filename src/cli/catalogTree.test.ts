@@ -88,3 +88,19 @@ describe("mergeMissingKeysIntoParsed", () => {
     expect((o.nav as Record<string, unknown>).new).toBe("");
   });
 });
+
+describe("mergeKeysIntoParsed", () => {
+  it("fills empty flat values without overwriting non-empty", async () => {
+    const { mergeKeysIntoParsed } = await import("./catalogTree.js");
+    const o = mergeKeysIntoParsed(
+      { a: "1", b: "" },
+      "flat",
+      [
+        { logicalKey: "b", value: "B text" },
+        { logicalKey: "c", value: "C text" },
+        { logicalKey: "a", value: "ignored" },
+      ],
+    ) as Record<string, string>;
+    expect(o).toEqual({ a: "1", b: "B text", c: "C text" });
+  });
+});

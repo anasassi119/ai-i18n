@@ -178,20 +178,71 @@ export function mergeMissingKeysIntoParsed(
   shape: LocaleShape,
   missingLogicalKeys: string[],
 ): unknown {
+  return mergeKeysIntoParsed(
+    parsed,
+    shape,
+    missingLogicalKeys.map((logicalKey) => ({ logicalKey, value: "" })),
+  );
+}
+
+/** Insert missing keys or fill empty leaves; never overwrites non-empty strings. */
+export function mergeKeysIntoParsed(
+  parsed: unknown,
+  shape: LocaleShape,
+  entries: { logicalKey: string; value: string }[],
+): unknown {
   const base =
     parsed && typeof parsed === "object" && !Array.isArray(parsed)
       ? (deepClone(parsed) as Record<string, unknown>)
       : {};
   if (shape === "flat") {
-    for (const k of missingLogicalKeys) {
-      if (base[k] === undefined) base[k] = "";
+    for (const { logicalKey, value } of entries) {
+      if (base[logicalKey] === undefined) {
+        base[logicalKey] = value;
+      } else if (base[logicalKey] === "") {
+        base[logicalKey] = value;
+      }
     }
     return base;
   }
-  for (const k of missingLogicalKeys) {
-    ensureNestedPathStringLeaf(base, k.split(".").filter(Boolean), "");
+  for (const { logicalKey, value } of entries) {
+    const segments = logicalKey.split(".").filter(Boolean);
+    const existing = getNestedStringLeaf(base, segments);
+    if (existing === undefined) {
+      ensureNestedPathStringLeaf(base, segments, value);
+    } else if (existing === "") {
+      setNestedStringLeaf(base, segments, value);
+    }
   }
   return base;
+}
+
+function getNestedStringLeaf(root: Record<string, unknown>, segments: string[]): string | undefined {
+  if (segments.length === 0) return undefined;
+  let cur: unknown = root;
+  for (const s of segments) {
+    if (!isPlainObject(cur)) return undefined;
+    cur = (cur as Record<string, unknown>)[s];
+  }
+  return typeof cur === "string" ? cur : undefined;
+}
+
+function setNestedStringLeaf(root: Record<string, unknown>, segments: string[], value: string): void {
+  if (segments.length === 0) return;
+  let cur: Record<string, unknown> = root;
+  for (let i = 0; i < segments.length - 1; i++) {
+    const s = segments[i]!;
+    const next = cur[s];
+    if (next === undefined || !isPlainObject(next)) {
+      cur[s] = {};
+    }
+    cur = cur[s] as Record<string, unknown>;
+  }
+  const last = segments[segments.length - 1]!;
+  if (cur[last] !== undefined && typeof cur[last] !== "string") {
+    throw new Error(`Cannot set key "${segments.join(".")}": existing value is not a string`);
+  }
+  cur[last] = value;
 }
 
 function ensureNestedPathStringLeaf(

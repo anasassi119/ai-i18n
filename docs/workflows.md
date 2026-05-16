@@ -10,6 +10,7 @@ Patterns for **i18next** + **ai-i18n** in development and CI. Paths follow [reso
 
 - Keys appear in scanned `t('…')` calls but **not** in the default locale catalog.
 - Keys exist in the default catalog but **not** as string-literal `t('…')` keys in scanned files (stale JSON).
+- Default catalog value is **empty** or **differs** from static **`defaultValue`** in code (when present).
 - Any target locale is **missing or empty** for a key present in the default catalog.
 - Any target locale has keys **not** in the default catalog (stale targets until you run `generate`).
 
@@ -51,7 +52,7 @@ if (import.meta.env.DEV) {
 }
 ```
 
-**Workflow:** add the key and English string to **`locales/{defaultLocale}.json`**, run **`npx ai-i18n generate`** to fill other locales, commit JSON.
+**Workflow:** add the key and English string to **`locales/{defaultLocale}.json`** (or use **`t('key', { defaultValue: '…' })`** and **`diff --add-missing-default`** / **`generate --sync-default-from-code`**), run **`npx ai-i18n generate`** to fill other locales, commit JSON.
 
 This package does **not** auto-write locale files from `missingKey` at runtime (no long-running translator in the browser).
 

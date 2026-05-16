@@ -9,7 +9,6 @@ Place at the **project root** (where you run the CLI).
   "sourceGlobs": ["src/**/*.{tsx,ts,jsx,js}"],
   "localesDir": "locales",
   "i18n": "src/i18n.ts",
-  "cacheDir": ".ai-i18n",
   "provider": "openai",
   "model": "gpt-5-mini"
 }
@@ -22,7 +21,6 @@ Place at the **project root** (where you run the CLI).
 | `sourceGlobs` | yes | Glob patterns for files to scan. |
 | `localesDir` | yes | Directory of locale JSON files (layout under it follows `resourceFormat`). **`translator-notes.json`** lives here — see [resource-contract.md](./resource-contract.md). |
 | `i18n` | conditional | Project-relative path to **your** module that calls **`*.init({...})`** for i18next-style setup. When set, the CLI **parses this file only** (no execution) to derive **`defaultLocale`**, **`locales`**, and usually **`resourceFormat`** / **`namespace`**. **When omitted**, you must set **`defaultLocale`**, **`locales`**, and layout fields (**`resourceFormat`**, and for namespace layout **`namespace`** or **`namespaces`**) explicitly — useful for catalog-only workflows. |
-| `cacheDir` | no (default `.ai-i18n`) | `.ai-i18n-cache.json` only. |
 | `provider` | no (defaults to `openai` if omitted) | `openai` \| `anthropic`. **Generated** default from `init` is `openai`. |
 | `model` | no | Provider model id. OpenAI CLI default when omitted: **`gpt-5-mini`**. |
 
@@ -35,10 +33,28 @@ Place at the **project root** (where you run the CLI).
 | `resourceFormat` | Force `flat` or `i18next-namespace` instead of inferring from the `resources` object shape in the `i18n` file. **Common fix:** your files are `locales/en.json` (flat) but `i18next.init({ resources: { en: { translation: … }}})` makes the CLI guess **namespace** paths (`locales/en/translation.json`). If that guess is wrong for your repo, set **`"resourceFormat": "flat"`**. |
 | `namespace` | Only with `resourceFormat: "i18next-namespace"`; default **`translation`**. Ignored when **`namespaces`** is set. Must be omitted when `resourceFormat` is `flat` (or omitted and inferred as flat). |
 | `namespaces` | Only with `resourceFormat: "i18next-namespace"`. Non-empty array of JSON basenames (without `.json`) per locale, e.g. `["nav","common"]` → `locales/en/nav.json` + `locales/en/common.json`. Implies **merged** logical keys with a **`namespace:`** prefix when more than one entry. |
-| `localeShape` | `flat` (default) or `nested`. **`nested`**: each locale JSON may use nested objects; **string leaves** become dot-path keys (`nav.home`). The deprecated key **`catalogShape`** is still read once with a warning; prefer **`localeShape`**. |
+| `localeShape` | `flat` (default) or `nested`. **`nested`**: each locale JSON may use nested objects; **string leaves** become dot-path keys (`nav.home`). |
 | `localesAutoDiscover` | When **`true`**, **`locales`** is replaced by scanning **`localesDir`** (see [resource-contract.md](./resource-contract.md)); **`defaultLocale`** stays first. |
 
-For **adding keys that appear in code but not yet in the default JSON**, use the CLI (not this file): `npx ai-i18n diff --add-missing-default` — see [cli-reference.md](./cli-reference.md).
+For **adding keys that appear in code but not yet in the default JSON**, use the CLI (not this file): `npx ai-i18n diff --add-missing-default` — seeds **`defaultValue`** / string shorthand from `t()` when present. See [cli-reference.md](./cli-reference.md).
+
+## Translation cache (v5)
+
+Not configurable. **`generate`** stores per-locale source hashes in:
+
+```text
+node_modules/.cache/ai-i18n/.ai-i18n-cache.json
+```
+
+Already gitignored when `node_modules` is ignored. Delete that file or the whole cache directory to force re-translation (or use `generate --force`). Remove any legacy project-root **`.ai-i18n/`** folder after upgrading.
+
+## Migration (v4 → v5)
+
+| Remove from `ai-i18n.config.json` | Use instead |
+|----------------------------------|-------------|
+| `catalogDir` | `localesDir` |
+| `catalogShape` | `localeShape` |
+| `cacheDir` | fixed path under `node_modules/.cache/ai-i18n` |
 
 ## Troubleshooting: namespace path vs flat JSON files
 
